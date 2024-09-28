@@ -72,6 +72,27 @@ def check_password():
     else:
         # Password correct.
         return True
+    
+def check_admin_password():
+    """Returns `True` if the user has entered the correct admin password."""
+    
+    def admin_password_entered():
+        """Checks whether the entered admin password is correct."""
+        st.session_state["admin_password_correct"] = st.session_state["admin_password"] == st.secrets["admin_password"]
+
+    if "admin_password_correct" not in st.session_state:
+        # First run, show input for admin password.
+        st.text_input("Admin Password", type="password", on_change=admin_password_entered, key="admin_password")
+        st.write("*Admin access required. Please contact David Liebovitz, MD if you need admin credentials.*")
+        return False
+    elif not st.session_state["admin_password_correct"]:
+        # Admin password not correct, show input + error.
+        st.text_input("Admin Password", type="password", on_change=admin_password_entered, key="admin_password")
+        st.error("😕 Admin password incorrect")
+        return False
+    else:
+        # Admin password correct.
+        return True
 
 with st.sidebar:
     
@@ -83,32 +104,49 @@ with st.sidebar:
         model = "gpt-4o-mini"
         st.info("The model is gpt-4o-mini")
     app = get_ec_app(api_key)
+        # app = App()
+    data_sources = app.get_data_sources()
 
-    uploaded_files = st.file_uploader("Upload your PDF or Text files", accept_multiple_files=True, type=["pdf", "txt"])
-    add_files = st.session_state.get("add_files", [])
-    for uploaded_file in uploaded_files:
-        file_name = uploaded_file.name
-        if file_name in add_files:
-            continue
-        try:
-            temp_file_name = None
-            with tempfile.NamedTemporaryFile(mode="wb", delete=False, prefix=file_name) as f:
-                f.write(uploaded_file.getvalue())
-                temp_file_name = f.name
-            if temp_file_name:
-                st.markdown(f"Adding {file_name} to knowledge base...")
-                if uploaded_file.type == "application/pdf":
-                    app.add(temp_file_name, data_type="pdf_file")
-                elif uploaded_file.type == "text/plain":
-                    app.add(temp_file_name, data_type="text_file")
-                st.markdown("")
-                add_files.append(file_name)
-                os.remove(temp_file_name)
-            st.session_state.messages.append({"role": "assistant", "content": f"Added {file_name} to knowledge base!"})
-        except Exception as e:
-            st.error(f"Error adding {file_name} to knowledge base: {e}")
-            st.stop()
-    st.session_state["add_files"] = add_files
+    # st.sidebar.write("Files in database: ", len(data_sources))
+    with st.sidebar:
+        st.divider()
+        st.subheader("Files in database:")
+        with st.expander(f'See {len(data_sources)} files in database.'):
+            for i in range(len(data_sources)):
+                full_path = data_sources[i]["data_value"]
+                # Extract just the filename from the full path
+                temp_filename = os.path.basename(full_path)
+                # Use regex to only keep up to the first .pdf in the filename
+                cleaned_filename = re.sub(r'^(.+?\.pdf).*$', r'\1', temp_filename)
+                st.write(i, ": ", cleaned_filename)
+    more_files = st.checkbox("Add more files to knowledge base")
+    if more_files:
+        if check_admin_password():
+            uploaded_files = st.file_uploader("Upload your PDF or Text files", accept_multiple_files=True, type=["pdf", "txt"])
+            add_files = st.session_state.get("add_files", [])
+            for uploaded_file in uploaded_files:
+                file_name = uploaded_file.name
+                if file_name in add_files:
+                    continue
+                try:
+                    temp_file_name = None
+                    with tempfile.NamedTemporaryFile(mode="wb", delete=False, prefix=file_name) as f:
+                        f.write(uploaded_file.getvalue())
+                        temp_file_name = f.name
+                    if temp_file_name:
+                        st.markdown(f"Adding {file_name} to knowledge base...")
+                        if uploaded_file.type == "application/pdf":
+                            app.add(temp_file_name, data_type="pdf_file")
+                        elif uploaded_file.type == "text/plain":
+                            app.add(temp_file_name, data_type="text_file")
+                        st.markdown("")
+                        add_files.append(file_name)
+                        os.remove(temp_file_name)
+                    st.session_state.messages.append({"role": "assistant", "content": f"Added {file_name} to knowledge base!"})
+                except Exception as e:
+                    st.error(f"Error adding {file_name} to knowledge base: {e}")
+                    st.stop()
+            st.session_state["add_files"] = add_files
 
 st.title("📄 AI Sally - Learn about PAD!")
 st.info("AI Sally uses reliable sources to answer your questions about PAD.")
