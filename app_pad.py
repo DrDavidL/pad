@@ -103,30 +103,30 @@ if check_password():
 
         app = get_ec_app(st.secrets["OPENAI_API_KEY"])
         db_path = get_db_path()
-        if "db_ready" not in st.session_state:
-            if not os.path.exists(db_path):
-                os.makedirs(db_path)
+        # if "db_ready" not in st.session_state:
+        #     if not os.path.exists(db_path):
+        #         os.makedirs(db_path)
             
-            # Check if the database is empty by checking the data sources
-            try:
-                data_sources = app.get_data_sources()
-            except Exception as e:
-                st.error(f"Failed to get data sources: {e}")
-                data_sources = []
+        #     # Check if the database is empty by checking the data sources
+        #     try:
+        #         data_sources = app.get_data_sources()
+        #     except Exception as e:
+        #         st.error(f"Failed to get data sources: {e}")
+        #         data_sources = []
 
-            if not data_sources:
-                added_files = set()
-                for filename in os.listdir("sources"):
-                    if filename.endswith('.txt'):
-                        file_path = os.path.join("sources", filename)
-                        if filename not in added_files:
-                            try:
-                                app.add(file_path, data_type="text_file")
-                                added_files.add(filename)
-                                print(f"Added {filename} to the app")
-                            except Exception as e:
-                                st.error(f"Failed to add {filename}: {e}")
-            st.session_state.db_ready = True
+        #     if not data_sources:
+        #         added_files = set()
+        #         for filename in os.listdir("sources"):
+        #             if filename.endswith('.txt'):
+        #                 file_path = os.path.join("sources", filename)
+        #                 if filename not in added_files:
+        #                     try:
+        #                         app.add(file_path, data_type="text_file")
+        #                         added_files.add(filename)
+        #                         print(f"Added {filename} to the app")
+        #                     except Exception as e:
+        #                         st.error(f"Failed to add {filename}: {e}")
+        #     st.session_state.db_ready = True
 
     if "messages_pdf" not in st.session_state:
         st.session_state.messages_pdf = [
