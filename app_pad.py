@@ -78,8 +78,10 @@ with st.sidebar:
     smarter = st.checkbox("Make AI Sally Smarter")
     if smarter:
         model = "gpt-4o"
+        st.success("The model is now gpt-4o")
     else:
         model = "gpt-4o-mini"
+        st.info("The model is gpt-4o-mini")
     app = get_ec_app(api_key)
 
     uploaded_files = st.file_uploader("Upload your PDF or Text files", accept_multiple_files=True, type=["pdf", "txt"])
