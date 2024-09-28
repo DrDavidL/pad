@@ -103,22 +103,7 @@ with st.sidebar:
     else:
         model = "gpt-4o-mini"
         st.info("The model is gpt-4o-mini")
-    app = get_ec_app(api_key)
-        # app = App()
-    data_sources = app.get_data_sources()
 
-    # st.sidebar.write("Files in database: ", len(data_sources))
-    with st.sidebar:
-        st.divider()
-        st.subheader("Files in database:")
-        with st.expander(f'See {len(data_sources)} files in database.'):
-            for i in range(len(data_sources)):
-                full_path = data_sources[i]["data_value"]
-                # Extract just the filename from the full path
-                temp_filename = os.path.basename(full_path)
-                # Use regex to only keep up to the first .pdf in the filename
-                cleaned_filename = re.sub(r'^(.+?\.pdf).*$', r'\1', temp_filename)
-                st.write(i, ": ", cleaned_filename)
     more_files = st.checkbox("Add more files to knowledge base")
     if more_files:
         if check_admin_password():
@@ -256,3 +241,20 @@ if check_password():
             msg_placeholder.markdown(full_response)
             print("Answer: ", full_response)
             # st.session_state.messages.append({"role": "assistant", "content": full_response})
+    
+    app = get_ec_app(api_key)
+        # app = App()
+    data_sources = app.get_data_sources()
+
+    # st.sidebar.write("Files in database: ", len(data_sources))
+    with st.sidebar:
+        st.divider()
+        st.subheader("Files in database:")
+        with st.expander(f'See {len(data_sources)} files in database.'):
+            for i in range(len(data_sources)):
+                full_path = data_sources[i]["data_value"]
+                # Extract just the filename from the full path
+                temp_filename = os.path.basename(full_path)
+                # Use regex to only keep up to the first .pdf in the filename
+                cleaned_filename = re.sub(r'^(.+?\.pdf).*$', r'\1', temp_filename)
+                st.write(i, ": ", cleaned_filename)
