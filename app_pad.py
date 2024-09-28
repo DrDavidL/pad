@@ -18,7 +18,7 @@ def embedchain_bot(db_path, api_key):
             "llm": {
                 "provider": "openai",
                 "config": {
-                    "model": "gpt-4o-mini",
+                    "model": model,
                     "temperature": 0.5,
                     "max_tokens": 1000,
                     "top_p": 1,
@@ -75,7 +75,11 @@ def check_password():
 
 with st.sidebar:
     
-
+    smarter = st.checkbox("Make AI Sally Smarter")
+    if smarter:
+        model = "gpt-4o"
+    else:
+        model = "gpt-4o-mini"
     app = get_ec_app(api_key)
 
     uploaded_files = st.file_uploader("Upload your PDF or Text files", accept_multiple_files=True, type=["pdf", "txt"])
