@@ -249,7 +249,7 @@ if check_password():
     # st.sidebar.write("Files in database: ", len(data_sources))
     with st.sidebar:
         st.divider()
-        st.subheader("Files in database:")
+        # st.subheader("Files in database:")
         with st.expander(f'See {len(data_sources)} files in database.'):
             for i in range(len(data_sources)):
                 full_path = data_sources[i]["data_value"]
