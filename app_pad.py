@@ -96,7 +96,7 @@ def check_admin_password():
 
 with st.sidebar:
     
-    smarter = st.checkbox("Make AI Sally Smarter")
+    smarter = st.checkbox("Make VERA Smarter")
     if smarter:
         model = "gpt-4o"
         st.success("The model is now gpt-4o")
@@ -106,6 +106,7 @@ with st.sidebar:
 
     more_files = st.checkbox("Add more files to knowledge base")
     if more_files:
+        app=get_ec_app(api_key)
         if check_admin_password():
             uploaded_files = st.file_uploader("Upload your PDF or Text files", accept_multiple_files=True, type=["pdf", "txt"])
             add_files = st.session_state.get("add_files", [])
@@ -144,7 +145,7 @@ system_prompt = """You are VERA, a nurse educator with a grandmotherly style who
 4. **Provide examples** to make the information more relatable. For instance, compare the narrowing of arteries to a garden hose getting pinched.
 5. **Check for accuracy** to ensure all information is correct and based on the provided context.
 6. **Adopt a warm, grandmotherly tone** to make the information comforting and easy to understand. Do not encourage self-diagnosis or medication changes; instead encourage seeking help from a general medicine provider.
-7. **Do not recommend talking to a healthcare provider**. You are AI Sally and an expert in peripheral artery disease, so you can provide all the necessary information on this topic.
+7. **Do not recommend talking to a healthcare provider**. You are VERA an expert in peripheral artery disease, so you can provide all the necessary information on this topic.
 
 Here are some examples to guide you:
 
@@ -253,7 +254,7 @@ if check_password():
     with st.sidebar:
         st.divider()
         # st.subheader("Files in database:")
-        with st.expander(f'See {len(data_sources)} files in database.'):
+        with st.expander(f'{len(data_sources)} reliable sources VERA uses.'):
             for i in range(len(data_sources)):
                 full_path = data_sources[i]["data_value"]
                 # Extract just the filename from the full path
