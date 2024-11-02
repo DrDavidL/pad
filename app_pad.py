@@ -95,19 +95,23 @@ def check_admin_password():
         return True
 
 with st.sidebar:
-    
-    smarter = st.checkbox("Make VERA Smarter")
-    if smarter:
-        model = "gpt-4o"
-        st.success("The model is now gpt-4o")
-    else:
+    st.info("VERA now starts smarter! 🧠")
+    less_smart = st.checkbox("Make VERA less smart (fewer $/token)")
+    if less_smart:
         model = "gpt-4o-mini"
-        st.info("The model is gpt-4o-mini")
+        st.success("The model is now gpt-4o-mini")
+    else:
+        model = "gpt-4o"
+        st.info("The model is gpt-4o (full version)")
 
     more_files = st.checkbox("Add more files to knowledge base")
     if more_files:
         app=get_ec_app(api_key)
         if check_admin_password():
+            app_reset = st.button("Reset knowledge base")
+            if app_reset:
+                app.reset()
+                st.session_state.messages.append({"role": "assistant", "content": "Knowledge base has been reset!"})
             uploaded_files = st.file_uploader("Upload your PDF or Text files", accept_multiple_files=True, type=["pdf", "txt"])
             add_files = st.session_state.get("add_files", [])
             for uploaded_file in uploaded_files:
@@ -182,11 +186,12 @@ if check_password():
         if message["role"] != "system":
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
-
+    
+    app = get_ec_app(api_key)
     if prompt := st.chat_input("Ask me about PAD!"):
 
 
-        app = get_ec_app(api_key)
+        
         
         # if len(st.session_state.messages) < 4:
         #     st.session_state.messages.append({"role": "system", "content": system_prompt})
@@ -246,8 +251,9 @@ if check_password():
             print("Answer: ", full_response)
             # st.session_state.messages.append({"role": "assistant", "content": full_response})
     
-    app = get_ec_app(api_key)
+    # app = get_ec_app(api_key)
         # app = App()
+    app = embedchain_bot("pad_db", api_key)
     data_sources = app.get_data_sources()
 
     # st.sidebar.write("Files in database: ", len(data_sources))
