@@ -1,6 +1,8 @@
 import os
 import queue
+from openai import OpenAI
 import re
+import base64
 import tempfile
 import threading
 from datetime import datetime
@@ -13,13 +15,48 @@ from embedchain import App
 from embedchain.config import BaseLlmConfig
 from embedchain.helpers.callbacks import StreamingStdOutCallbackHandlerYield, generate
 
-from pages.log import initialize_database, save_message
+# Vera.py
+from database import initialize_database, save_message, retrieve_conversations_by_filters, check_password
+# rest of your code
+
 
 # from rag_citation import CiteItem, Inference
 # Database configuration
 DATABASE_URL = st.secrets["DATABASE_URL"]
-
+initialize_database()
 api_key = st.secrets["OPENAI_API_KEY"]
+
+def talk_stream(model, voice, input):
+    api_key = st.secrets["OPENAI_API_KEY"]
+    client = OpenAI(    
+        base_url="https://api.openai.com/v1",
+        api_key=api_key,
+    )
+    try:
+        response = client.audio.speech.create(
+        model= model,
+        voice= voice,
+        input= input,
+        )
+        response.stream_to_file("last_answer.mp3")
+    
+    except Exception as e:
+        st.write("The API is busy - should work in a moment for voice.")
+    
+def autoplay_local_audio(filepath: str):
+    # Read the audio file from the local file system
+    with open(filepath, 'rb') as f:
+        data = f.read()
+    b64 = base64.b64encode(data).decode()
+    md = f"""
+        <audio controls autoplay="true">
+        <source src="data:audio/mp3;base64,{b64}" type="audio/mp3">
+        </audio>
+        """
+    st.markdown(
+        md,
+        unsafe_allow_html=True,
+    )
 
 def embedchain_bot(db_path, api_key):
     return App.from_config(
@@ -61,27 +98,7 @@ def get_ec_app(api_key):
         st.session_state.app = app
     return app
 
-def check_password():
-    """Returns `True` if the user has entered the correct password."""
 
-    def password_entered():
-        """Checks whether the entered password is correct."""
-        st.session_state["password_correct"] = st.session_state["password"] == st.secrets["password"]
-
-    if "password_correct" not in st.session_state:
-        # First run, show input for password.
-        st.text_input("Password", type="password", on_change=password_entered, key="password")
-        st.write("*Please contact David Liebovitz, MD if you need an updated password for access.*")
-        return False
-    elif not st.session_state["password_correct"]:
-        # Password not correct, show input + error.
-        st.text_input("Password", type="password", on_change=password_entered, key="password")
-        st.error("😕 Password incorrect")
-        return False
-    else:
-        # Password correct.
-        return True
-    
 def check_admin_password():
     """Returns `True` if the user has entered the correct admin password."""
     
@@ -147,7 +164,7 @@ with st.sidebar:
                     st.stop()
             st.session_state["add_files"] = add_files
 
-st.title("📄 Learn about PAD from VERA!")
+st.title("👩🏾‍⚕️ Learn about PAD from VERA!")
 st.info("VERA uses reliable sources to answer your questions about PAD.")
 
 system_prompt = """You are VERA, a nurse educator with a grandmotherly style who uses the context provided as a fact basis when answering questions about peripheral artery disease. Ensure your answers are factually sound while meeting the standard for a 5th grade reading and comprehension level. Adopt a warm, nurturing tone, almost like a grandmother explaining things to her grandchild. Follow these steps:
@@ -179,12 +196,15 @@ Remember to always review the context and ensure your answers are clear, accurat
 Now, here is the current user's new question:"""
 
 if check_password():
-    initialize_database()
+    # initialize_database()
     # Conversation Interface
     if "conversation_id" not in st.session_state:
         st.session_state.conversation_id = f"conv_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
     first_name = st.text_input("What's your first name?", key="first_name")
+    
+    if "last_answer" not in st.session_state:
+        st.session_state.last_answer = ""
 
     if "messages" not in st.session_state:
         st.session_state.messages = [
@@ -247,6 +267,7 @@ if check_password():
             thread.join()
             answer, citations = results["answer"], results["citations"]
             save_message("bot", st.session_state.conversation_id, "assistant", answer)
+            st.session_state.last_answer = answer   
             
             # # Display the main answer
             # st.write("### Answer")
@@ -313,6 +334,25 @@ if check_password():
             msg_placeholder.markdown(full_response)
             print("Answer: ", full_response)
             # st.session_state.messages.append({"role": "assistant", "content": full_response})
+    
+    # Audio stuff
+    if st.session_state.last_answer:
+        talk_stream("tts-1", voice="nova", input=answer)
+        autoplay_local_audio("last_answer.mp3")
+        st.info("Note - this is an AI synthesized voice.")            
+        os.remove("last_answer.mp3")   
+
+    client = OpenAI()
+
+    response = client.audio.speech.create(
+        model="tts-1",
+        voice="alloy",
+        input="Hello world! This is a streaming test.",
+    )
+
+    response.stream_to_file("output.mp3")
+        
+    
     
     # app = get_ec_app(api_key)
         # app = App()

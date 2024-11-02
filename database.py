@@ -1,12 +1,7 @@
-import streamlit as st
-from datetime import datetime
+# database.py
 import psycopg2
-from psycopg2 import sql
-
-# log.py
-from database import initialize_database, save_message, retrieve_conversations_by_filters, check_password
-# rest of your code
-
+from datetime import datetime
+import streamlit as st
 
 # Database configuration
 DATABASE_URL = st.secrets["DATABASE_URL"]
@@ -56,10 +51,6 @@ def retrieve_conversations_by_filters(start_date, end_date, user_name=None, conv
     start_datetime = datetime.combine(start_date, datetime.min.time())
     end_datetime = datetime.combine(end_date, datetime.max.time())
 
-    # Logging to confirm date and time handling
-    print(f"Searching from {start_datetime} to {end_datetime}")
-
-    # Build the query dynamically based on provided filters
     query = """
     SELECT user_name, timestamp, conversation_id, role, content 
     FROM conversations
@@ -82,37 +73,24 @@ def retrieve_conversations_by_filters(start_date, end_date, user_name=None, conv
     conn.close()
     return results
 
-# Streamlit UI
-st.title("Conversation Log")
-initialize_database()
-if check_password():
-    # initialize_database()
+def check_password():
+    """Returns `True` if the user has entered the correct password."""
 
-    # Date range and search filters
-    st.subheader("Retrieve Conversations by Date Range and Filters")
-    start_date = st.date_input("Start Date", value=datetime.now().date())
-    end_date = st.date_input("End Date", value=datetime.now().date())
-    user_name = st.text_input("User Name (optional)")
-    conversation_id = st.text_input("Conversation ID (optional)")
+    def password_entered():
+        """Checks whether the entered password is correct."""
+        st.session_state["password_correct"] = st.session_state["password"] == st.secrets["password"]
 
-    # Validate date range
-    if start_date > end_date:
-        st.error("Start date cannot be after end date.")
+    if "password_correct" not in st.session_state:
+        # First run, show input for password.
+        st.text_input("Password", type="password", on_change=password_entered, key="password")
+        st.write("*Please contact David Liebovitz, MD if you need an updated password for access.*")
+        return False
+    elif not st.session_state["password_correct"]:
+        # Password not correct, show input + error.
+        st.text_input("Password", type="password", on_change=password_entered, key="password")
+        st.error("😕 Password incorrect")
+        return False
     else:
-        conversations = retrieve_conversations_by_filters(start_date, end_date, user_name, conversation_id)
-        if conversations:
-            # Organize results by conversation ID
-            conversation_threads = {}
-            for user_name, timestamp, conv_id, role, content in conversations:
-                if conv_id not in conversation_threads:
-                    conversation_threads[conv_id] = []
-                conversation_threads[conv_id].append((user_name, timestamp, role, content))
-
-            # Display each conversation in an organized, expandable format
-            for conv_id, messages in conversation_threads.items():
-                with st.expander(f"Conversation ID: {conv_id}"):
-                    for user_name, timestamp, role, content in messages:
-                        time_display = timestamp.strftime("%Y-%m-%d %H:%M:%S")
-                        st.markdown(f"**{role.capitalize()}** ({user_name} - {time_display}): {content}")
-        else:
-            st.write("No conversations found for the selected criteria.")
+        # Password correct.
+        return True
+    
