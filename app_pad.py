@@ -10,6 +10,8 @@ from embedchain import App
 from embedchain.config import BaseLlmConfig
 from embedchain.helpers.callbacks import StreamingStdOutCallbackHandlerYield, generate
 
+# from rag_citation import CiteItem, Inference
+
 api_key = st.secrets["OPENAI_API_KEY"]
 
 def embedchain_bot(db_path, api_key):
@@ -145,7 +147,7 @@ system_prompt = """You are VERA, a nurse educator with a grandmotherly style who
 
 1. **Read the context carefully** to understand the key facts about peripheral artery disease.
 2. **Simplify medical terms** so that a 5th grader can understand them. For example, instead of "arteries," use "blood vessels."
-3. **Use short sentences** and simple words to explain complex ideas.
+3. **Use short sentences** and simple words to explain complex ideas. Vary how you use the user's name in your responses, too! (Not always at the beginning or end of the sentence.)
 4. **Provide examples** to make the information more relatable. For instance, compare the narrowing of arteries to a garden hose getting pinched.
 5. **Check for accuracy** to ensure all information is correct and based on the provided context.
 6. **Adopt a warm, grandmotherly tone** to make the information comforting and easy to understand. Do not encourage self-diagnosis or medication changes; instead encourage seeking help from a general medicine provider.
@@ -153,23 +155,24 @@ system_prompt = """You are VERA, a nurse educator with a grandmotherly style who
 
 Here are some examples to guide you:
 
-- **Question**: What should you do if you have symptoms of peripheral artery disease?  
-  **Answer**: Oh my dear, if you're feeling pain in your legs when you walk or notice they get tired easily, the very first person you should see is your primary care doctor. They know you best and can guide you through the next steps. You don't need to rush off to see a specialist just yet. Your doctor can help figure out what's going on and make sure you're taken care of, sweetie.
+- **Question**: John: What should you do if you have symptoms of peripheral artery disease?  
+  **Answer**: I'm sorry to here this, John. If you're feeling pain in your legs when you walk or notice they get tired easily, the very first person you should see is your primary care doctor. They know you best and can guide you through the next steps. You don't need to rush off to see a specialist just yet. Your doctor can help figure out what's going on and make sure you're taken care of, sweetie.
 
-- **Question**: What is peripheral artery disease?
-  **Answer**: Oh dear, peripheral artery disease is when the blood vessels in your legs get narrow, making it hard for blood to flow. It's like when a garden hose gets pinched and water can't get through easily. But don't worry, there are ways we can manage it together.
+- **Question**: John: What is peripheral artery disease?
+  **Answer**: Peripheral artery disease is when the blood vessels in your legs get narrow, making it hard for blood to flow. It's like when a garden hose gets pinched and water can't get through easily. But don't worry, John, there are ways we can manage it together.
 
-- **Question**: What are the symptoms of peripheral artery disease?
-  **Answer**: If you have peripheral artery disease, you might feel some pain in your legs when you walk, my dear. Your legs might also feel tired or weak, similar to how they feel after a long day of standing or walking around.
+- **Question**: John: What are the symptoms of peripheral artery disease?
+  **Answer**: If you have peripheral artery disease, John, you might feel some pain in your legs when you walk, my dear. Your legs might also feel tired or weak, similar to how they feel after a long day of standing or walking around.
 
-- **Question**: How can you prevent peripheral artery disease?
-  **Answer**: To help prevent peripheral artery disease, it's important to eat healthy foods, stay active, and avoid smoking, sweetheart. Think of it like tending to a garden—by taking good care of yourself, you're helping your body stay strong and healthy.
+- **Question**: John: How can you prevent peripheral artery disease?
+  **Answer**: To help prevent peripheral artery disease, it's important to eat healthy foods, stay active, and avoid smoking, sweetheart. Think of it like tending to a garden—by taking good care of yourself, John, you're helping your body stay strong and healthy.
 
 Remember to always review the context and ensure your answers are clear, accurate, and nurturing, just like a loving grandmother would explain.
 
 Now, here is the current user's new question:"""
 
 if check_password():
+    first_name = st.text_input("What's your first name?", key="first_name")
 
     if "messages" not in st.session_state:
         st.session_state.messages = [
@@ -188,9 +191,8 @@ if check_password():
                 st.markdown(message["content"])
     
     app = get_ec_app(api_key)
+    
     if prompt := st.chat_input("Ask me about PAD!"):
-
-
         
         
         # if len(st.session_state.messages) < 4:
@@ -199,7 +201,7 @@ if check_password():
         # else:
         #     final_prompt = prompt
         
-        final_prompt = system_prompt + prompt
+        final_prompt = f'{system_prompt} {first_name}:  {prompt}'
 
         with st.chat_message("user"):
             st.session_state.messages.append({"role": "user", "content": prompt})
@@ -232,20 +234,68 @@ if check_password():
 
             thread.join()
             answer, citations = results["answer"], results["citations"]
+            
+            # # Display the main answer
+            # st.write("### Answer")
+            # st.write(answer)
+
+            # Process and display citations in an organized way, now including scores
+            processed_citations = []
+            for citation in citations:
+                # Assuming each citation entry is a list where:
+                # - citation[0] is the document content
+                # - citation[1] is a dictionary with metadata details
+                document_text = citation[0]
+                metadata = citation[1]
+
+                # Append processed citation data, including score
+                processed_citations.append({
+                    "source_id": metadata.get("doc_id", "N/A"),
+                    "document": document_text,
+                    "meta": [{"url": metadata.get("url", "#"), "chunk_id": metadata.get("hash", "N/A")}],
+                    "score": metadata.get("score", 0)  # Default to 0 if score is missing
+                })
+
+            # Sort citations by score in descending order
+            processed_citations = sorted(processed_citations, key=lambda x: x["score"], reverse=True)
+
+            # Display sorted citations with score at the top
+            st.write("### Citations")
+            for idx, citation in enumerate(processed_citations):
+                # Format score to three decimal places
+                score_display = f"{citation['score']:.3f}"
+                with st.expander(f"Citation {idx + 1} (Score: {score_display})"):
+                    # Display document text
+                    st.write(citation['document'])
+                    
+                    # Display source link with chunk ID
+                    for meta in citation['meta']:
+                        st.markdown(f"**Source:** [Link]({meta['url']}) (Chunk ID: {meta['chunk_id']})")
+
+            
+            # And, finally, analyze the answer
+            
+            # inference = Inference(spacy_model="sm", embedding_model="md")
+            # cite_item = CiteItem(answer=answer, context=processed_citations)
+            # output=inference(cite_item)
+            # st.write(output.citation)
+            # st.write(output.missing_word)
+            # st.write(output.hallucination)
+            
             st.session_state.messages.append({"role": "assistant", "content": answer})
-            if citations:
-                full_response += "\n\n**Sources**:\n"
-                sources = []
-                for i, citation in enumerate(citations):
-                    source = citation[1]["url"]
-                    pattern = re.compile(r"([^/]+)\.[^\.]+\.pdf$")
-                    match = pattern.search(source)
-                    if match:
-                        source = match.group(1) + ".pdf"
-                    sources.append(source)
-                sources = list(set(sources))
-                for source in sources:
-                    full_response += f"- {source}\n"
+            # if citations:
+            #     full_response += "\n\n**Sources**:\n"
+            #     sources = []
+            #     for i, citation in enumerate(citations):
+            #         source = citation[1]["url"]
+            #         pattern = re.compile(r"([^/]+)\.[^\.]+\.pdf$")
+            #         match = pattern.search(source)
+            #         if match:
+            #             source = match.group(1) + ".pdf"
+            #         sources.append(source)
+            #     sources = list(set(sources))
+            #     for source in sources:
+            #         full_response += f"- {source}\n"
 
             msg_placeholder.markdown(full_response)
             print("Answer: ", full_response)
