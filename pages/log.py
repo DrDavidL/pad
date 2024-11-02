@@ -3,6 +3,8 @@ from datetime import datetime
 import psycopg2
 from psycopg2 import sql
 
+from Vera import check_password as check_password_log
+
 # Database configuration
 DATABASE_URL = st.secrets["DATABASE_URL"]
 
@@ -79,33 +81,35 @@ def retrieve_conversations_by_filters(start_date, end_date, user_name=None, conv
 
 # Streamlit UI
 st.title("Conversation Log")
-initialize_database()
 
-# Date range and search filters
-st.subheader("Retrieve Conversations by Date Range and Filters")
-start_date = st.date_input("Start Date", value=datetime.now().date())
-end_date = st.date_input("End Date", value=datetime.now().date())
-user_name = st.text_input("User Name (optional)")
-conversation_id = st.text_input("Conversation ID (optional)")
+if check_password_log():
+    initialize_database()
 
-# Validate date range
-if start_date > end_date:
-    st.error("Start date cannot be after end date.")
-else:
-    conversations = retrieve_conversations_by_filters(start_date, end_date, user_name, conversation_id)
-    if conversations:
-        # Organize results by conversation ID
-        conversation_threads = {}
-        for user_name, timestamp, conv_id, role, content in conversations:
-            if conv_id not in conversation_threads:
-                conversation_threads[conv_id] = []
-            conversation_threads[conv_id].append((user_name, timestamp, role, content))
+    # Date range and search filters
+    st.subheader("Retrieve Conversations by Date Range and Filters")
+    start_date = st.date_input("Start Date", value=datetime.now().date())
+    end_date = st.date_input("End Date", value=datetime.now().date())
+    user_name = st.text_input("User Name (optional)")
+    conversation_id = st.text_input("Conversation ID (optional)")
 
-        # Display each conversation in an organized, expandable format
-        for conv_id, messages in conversation_threads.items():
-            with st.expander(f"Conversation ID: {conv_id}"):
-                for user_name, timestamp, role, content in messages:
-                    time_display = timestamp.strftime("%Y-%m-%d %H:%M:%S")
-                    st.markdown(f"**{role.capitalize()}** ({user_name} - {time_display}): {content}")
+    # Validate date range
+    if start_date > end_date:
+        st.error("Start date cannot be after end date.")
     else:
-        st.write("No conversations found for the selected criteria.")
+        conversations = retrieve_conversations_by_filters(start_date, end_date, user_name, conversation_id)
+        if conversations:
+            # Organize results by conversation ID
+            conversation_threads = {}
+            for user_name, timestamp, conv_id, role, content in conversations:
+                if conv_id not in conversation_threads:
+                    conversation_threads[conv_id] = []
+                conversation_threads[conv_id].append((user_name, timestamp, role, content))
+
+            # Display each conversation in an organized, expandable format
+            for conv_id, messages in conversation_threads.items():
+                with st.expander(f"Conversation ID: {conv_id}"):
+                    for user_name, timestamp, role, content in messages:
+                        time_display = timestamp.strftime("%Y-%m-%d %H:%M:%S")
+                        st.markdown(f"**{role.capitalize()}** ({user_name} - {time_display}): {content}")
+        else:
+            st.write("No conversations found for the selected criteria.")
