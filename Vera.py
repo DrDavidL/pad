@@ -13,7 +13,7 @@ from embedchain import App
 from embedchain.config import BaseLlmConfig
 from embedchain.helpers.callbacks import StreamingStdOutCallbackHandlerYield, generate
 
-from pages.log import initialize_database, save_message, retrieve_conversations
+from pages.log import initialize_database, save_message
 
 # from rag_citation import CiteItem, Inference
 # Database configuration
