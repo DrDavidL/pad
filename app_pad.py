@@ -3,6 +3,9 @@ import queue
 import re
 import tempfile
 import threading
+from datetime import datetime
+import psycopg2
+from psycopg2 import sql
 
 import streamlit as st
 
@@ -10,7 +13,11 @@ from embedchain import App
 from embedchain.config import BaseLlmConfig
 from embedchain.helpers.callbacks import StreamingStdOutCallbackHandlerYield, generate
 
+from pages.log import initialize_database, save_message, retrieve_conversations
+
 # from rag_citation import CiteItem, Inference
+# Database configuration
+DATABASE_URL = st.secrets["DATABASE_URL"]
 
 api_key = st.secrets["OPENAI_API_KEY"]
 
@@ -172,6 +179,11 @@ Remember to always review the context and ensure your answers are clear, accurat
 Now, here is the current user's new question:"""
 
 if check_password():
+    initialize_database()
+    # Conversation Interface
+    if "conversation_id" not in st.session_state:
+        st.session_state.conversation_id = f"conv_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+
     first_name = st.text_input("What's your first name?", key="first_name")
 
     if "messages" not in st.session_state:
@@ -193,7 +205,7 @@ if check_password():
     app = get_ec_app(api_key)
     
     if prompt := st.chat_input("Ask me about PAD!"):
-        
+        save_message(first_name, st.session_state.conversation_id, "user", prompt)
         
         # if len(st.session_state.messages) < 4:
         #     st.session_state.messages.append({"role": "system", "content": system_prompt})
@@ -234,6 +246,7 @@ if check_password():
 
             thread.join()
             answer, citations = results["answer"], results["citations"]
+            save_message("bot", st.session_state.conversation_id, "assistant", answer)
             
             # # Display the main answer
             # st.write("### Answer")
