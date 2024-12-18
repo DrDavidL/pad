@@ -5,15 +5,20 @@ import re
 import base64
 import tempfile
 import threading
+import requests, json
 from datetime import datetime
 import psycopg2
 from psycopg2 import sql
+from new_prompt import master_prompt
+from groq import Groq
 
 import streamlit as st
 
 from embedchain import App
 from embedchain.config import BaseLlmConfig
 from embedchain.helpers.callbacks import StreamingStdOutCallbackHandlerYield, generate
+
+from typing import List, Dict, Any
 
 # Vera.py
 from database import initialize_database, save_message, retrieve_conversations_by_filters, check_password
@@ -25,6 +30,59 @@ from database import initialize_database, save_message, retrieve_conversations_b
 DATABASE_URL = st.secrets["DATABASE_URL"]
 initialize_database()
 api_key = st.secrets["OPENAI_API_KEY"]
+
+
+
+def set_client(model):
+    # Define the API keys and base URLs for different clients
+    clients = {
+        "llama-3.3-70b-versatile": Groq(api_key=st.secrets["GROQ_API_KEY"]),
+        "gemma2-9b-it": Groq(api_key=st.secrets["GROQ_API_KEY"]),
+        "gpt-4o": OpenAI(base_url="https://api.openai.com/v1", api_key=st.secrets["OPENAI_API_KEY"]),
+        "gpt-4o-mini": OpenAI(base_url="https://api.openai.com/v1", api_key=st.secrets["OPENAI_API_KEY"]),
+    }
+    # Return the appropriate client or default to OpenRouter API
+    client = clients.get(model)
+    if client is None:
+        client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=st.secrets["OPENROUTER_API_KEY"])
+    return client
+
+def llm_call(model: str, messages: List[Dict[str, Any]], stream: bool = True) -> str:
+    try:
+        # Set the appropriate client based on the model
+        client = set_client(model)
+        # Create a completion request with the language model
+        completion = client.chat.completions.create(
+            model=model, 
+            messages=messages, 
+            temperature=0.5, 
+            max_tokens=1000, 
+            stream=stream
+        )
+        if stream:
+            # Initialize an empty response string and a Streamlit placeholder for streaming output
+            full_response = ""
+            placeholder = st.empty()
+            # Iterate through the streamed chunks of responses
+            for chunk in completion:
+                # Check if there is content to add to the full response
+                if chunk.choices[0].delta.content:
+                    full_response += chunk.choices[0].delta.content
+                    # Update the placeholder with the current full response
+                    placeholder.markdown(full_response)
+            return full_response
+        else:
+            # Return the full response content when not streaming
+            return completion.choices[0].message.content
+    except requests.exceptions.RequestException as req_err:
+        st.error(f"Request error during LLM call: {req_err}")
+        return "Failed to get response due to a request error."
+    except json.JSONDecodeError as json_err:
+        st.error(f"JSON decode error during LLM call: {json_err}")
+        return "Failed to get response due to a JSON decode error."
+    except Exception as e:
+        st.error(f"Unexpected error during LLM call: {e}")
+        return "Failed to get response due to an unexpected error."
 
 def talk_stream(model, voice, input):
     api_key = st.secrets["OPENAI_API_KEY"]
@@ -123,46 +181,49 @@ def check_admin_password():
 with st.sidebar:
     st.info("VERA now starts smarter! 🧠")
     less_smart = st.checkbox("Make VERA less smart (fewer $/token)")
+    new_method = st.checkbox("Use new method", value=True)
     if less_smart:
         model = "gpt-4o-mini"
         st.success("The model is now gpt-4o-mini")
     else:
         model = "gpt-4o"
         st.info("The model is gpt-4o (full version)")
+        
+    if new_method == False:    
 
-    more_files = st.checkbox("Add more files to knowledge base")
-    if more_files:
-        app=get_ec_app(api_key)
-        if check_admin_password():
-            app_reset = st.button("Reset knowledge base")
-            if app_reset:
-                app.reset()
-                st.session_state.messages.append({"role": "assistant", "content": "Knowledge base has been reset!"})
-            uploaded_files = st.file_uploader("Upload your PDF or Text files", accept_multiple_files=True, type=["pdf", "txt"])
-            add_files = st.session_state.get("add_files", [])
-            for uploaded_file in uploaded_files:
-                file_name = uploaded_file.name
-                if file_name in add_files:
-                    continue
-                try:
-                    temp_file_name = None
-                    with tempfile.NamedTemporaryFile(mode="wb", delete=False, prefix=file_name) as f:
-                        f.write(uploaded_file.getvalue())
-                        temp_file_name = f.name
-                    if temp_file_name:
-                        st.markdown(f"Adding {file_name} to knowledge base...")
-                        if uploaded_file.type == "application/pdf":
-                            app.add(temp_file_name, data_type="pdf_file")
-                        elif uploaded_file.type == "text/plain":
-                            app.add(temp_file_name, data_type="text_file")
-                        st.markdown("")
-                        add_files.append(file_name)
-                        os.remove(temp_file_name)
-                    st.session_state.messages.append({"role": "assistant", "content": f"Added {file_name} to knowledge base!"})
-                except Exception as e:
-                    st.error(f"Error adding {file_name} to knowledge base: {e}")
-                    st.stop()
-            st.session_state["add_files"] = add_files
+        more_files = st.checkbox("Add more files to knowledge base")
+        if more_files:
+            app=get_ec_app(api_key)
+            if check_admin_password():
+                app_reset = st.button("Reset knowledge base")
+                if app_reset:
+                    app.reset()
+                    st.session_state.messages.append({"role": "assistant", "content": "Knowledge base has been reset!"})
+                uploaded_files = st.file_uploader("Upload your PDF or Text files", accept_multiple_files=True, type=["pdf", "txt"])
+                add_files = st.session_state.get("add_files", [])
+                for uploaded_file in uploaded_files:
+                    file_name = uploaded_file.name
+                    if file_name in add_files:
+                        continue
+                    try:
+                        temp_file_name = None
+                        with tempfile.NamedTemporaryFile(mode="wb", delete=False, prefix=file_name) as f:
+                            f.write(uploaded_file.getvalue())
+                            temp_file_name = f.name
+                        if temp_file_name:
+                            st.markdown(f"Adding {file_name} to knowledge base...")
+                            if uploaded_file.type == "application/pdf":
+                                app.add(temp_file_name, data_type="pdf_file")
+                            elif uploaded_file.type == "text/plain":
+                                app.add(temp_file_name, data_type="text_file")
+                            st.markdown("")
+                            add_files.append(file_name)
+                            os.remove(temp_file_name)
+                        st.session_state.messages.append({"role": "assistant", "content": f"Added {file_name} to knowledge base!"})
+                    except Exception as e:
+                        st.error(f"Error adding {file_name} to knowledge base: {e}")
+                        st.stop()
+                st.session_state["add_files"] = add_files
 
 st.title("👩🏾‍⚕️ Learn about PAD from VERA!")
 st.info("VERA uses reliable sources to answer your questions about PAD.")
@@ -207,22 +268,27 @@ if check_password():
         st.session_state.last_answer = ""
 
     if "messages" not in st.session_state:
-        st.session_state.messages = [
+        
+        if new_method==False:
+            st.session_state.messages = [
 
-            {
-                "role": "assistant",
-                "content": """
-                    Hi! I'm VERA and happy to answer any questions you have about PAD which stands for peripheral arterial disease! 
-                """,
-            }
-        ]
+                {
+                    "role": "assistant",
+                    "content": """
+                        Hi! I'm VERA and happy to answer any questions you have about P.A.D. which stands for peripheral arterial disease! 
+                    """,
+                }
+            ]
+        else:
+            st.session_state.messages = [{"role": "system", "content": master_prompt}]
 
     for message in st.session_state.messages:
         if message["role"] != "system":
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
     
-    app = get_ec_app(api_key)
+    if new_method==False:
+        app = get_ec_app(api_key)
     
     if prompt := st.chat_input("Ask me about PAD!"):
         save_message(first_name, st.session_state.conversation_id, "user", prompt)
@@ -245,68 +311,84 @@ if check_password():
             msg_placeholder = st.empty()
             msg_placeholder.markdown("Thinking...")
             full_response = ""
+            
+            if new_method==False:
+            
 
-            q = queue.Queue()
+                q = queue.Queue()
 
-            def app_response(result):
-                llm_config = app.llm.config.as_dict()
-                llm_config["callbacks"] = [StreamingStdOutCallbackHandlerYield(q=q)]
-                config = BaseLlmConfig(**llm_config)
-                answer, citations = app.chat(final_prompt, config=config, citations=True)
-                result["answer"] = answer
-                result["citations"] = citations
+                def app_response(result):
+                    llm_config = app.llm.config.as_dict()
+                    llm_config["callbacks"] = [StreamingStdOutCallbackHandlerYield(q=q)]
+                    config = BaseLlmConfig(**llm_config)
+                    answer, citations = app.chat(final_prompt, config=config, citations=True)
+                    result["answer"] = answer
+                    result["citations"] = citations
 
-            results = {}
-            thread = threading.Thread(target=app_response, args=(results,))
-            thread.start()
+                results = {}
+                thread = threading.Thread(target=app_response, args=(results,))
+                thread.start()
 
-            for answer_chunk in generate(q):
-                full_response += answer_chunk
+                for answer_chunk in generate(q):
+                    full_response += answer_chunk
+                    msg_placeholder.markdown(full_response)
+
+                thread.join()
+                answer, citations = results["answer"], results["citations"]
+                save_message("bot", st.session_state.conversation_id, "assistant", answer)
+                st.session_state.last_answer = answer   
+                
+                # # Display the main answer
+                # st.write("### Answer")
+                # st.write(answer)
+
+                # Process and display citations in an organized way, now including scores
+                processed_citations = []
+                for citation in citations:
+                    # Assuming each citation entry is a list where:
+                    # - citation[0] is the document content
+                    # - citation[1] is a dictionary with metadata details
+                    document_text = citation[0]
+                    metadata = citation[1]
+
+                    # Append processed citation data, including score
+                    processed_citations.append({
+                        "source_id": metadata.get("doc_id", "N/A"),
+                        "document": document_text,
+                        "meta": [{"url": metadata.get("url", "#"), "chunk_id": metadata.get("hash", "N/A")}],
+                        "score": metadata.get("score", 0)  # Default to 0 if score is missing
+                    })
+
+                # Sort citations by score in descending order
+                processed_citations = sorted(processed_citations, key=lambda x: x["score"], reverse=True)
+
+                # Display sorted citations with score at the top
+                st.write("### Citations")
+                for idx, citation in enumerate(processed_citations):
+                    # Format score to three decimal places
+                    score_display = f"{citation['score']:.3f}"
+                    with st.expander(f"Citation {idx + 1} (Score: {score_display})"):
+                        # Display document text
+                        st.write(citation['document'])
+                        
+                        # Display source link with chunk ID
+                        for meta in citation['meta']:
+                            st.markdown(f"**Source:** [Link]({meta['url']}) (Chunk ID: {meta['chunk_id']})")
+
+            
                 msg_placeholder.markdown(full_response)
-
-            thread.join()
-            answer, citations = results["answer"], results["citations"]
-            save_message("bot", st.session_state.conversation_id, "assistant", answer)
-            st.session_state.last_answer = answer   
-            
-            # # Display the main answer
-            # st.write("### Answer")
-            # st.write(answer)
-
-            # Process and display citations in an organized way, now including scores
-            processed_citations = []
-            for citation in citations:
-                # Assuming each citation entry is a list where:
-                # - citation[0] is the document content
-                # - citation[1] is a dictionary with metadata details
-                document_text = citation[0]
-                metadata = citation[1]
-
-                # Append processed citation data, including score
-                processed_citations.append({
-                    "source_id": metadata.get("doc_id", "N/A"),
-                    "document": document_text,
-                    "meta": [{"url": metadata.get("url", "#"), "chunk_id": metadata.get("hash", "N/A")}],
-                    "score": metadata.get("score", 0)  # Default to 0 if score is missing
-                })
-
-            # Sort citations by score in descending order
-            processed_citations = sorted(processed_citations, key=lambda x: x["score"], reverse=True)
-
-            # Display sorted citations with score at the top
-            st.write("### Citations")
-            for idx, citation in enumerate(processed_citations):
-                # Format score to three decimal places
-                score_display = f"{citation['score']:.3f}"
-                with st.expander(f"Citation {idx + 1} (Score: {score_display})"):
-                    # Display document text
-                    st.write(citation['document'])
-                    
-                    # Display source link with chunk ID
-                    for meta in citation['meta']:
-                        st.markdown(f"**Source:** [Link]({meta['url']}) (Chunk ID: {meta['chunk_id']})")
-
-            
+                print("Answer: ", full_response)
+            else:
+                
+                final_user_prompt = f' {first_name}:  {prompt}'
+                st.session_state.messages.append({"role": "user", "content": final_user_prompt})
+                answer = llm_call(model, st.session_state.messages)
+                st.session_state.last_answer = answer
+                
+                save_message("bot", st.session_state.conversation_id, "assistant", answer)
+                
+                
+                
             # And, finally, analyze the answer
             
             # inference = Inference(spacy_model="sm", embedding_model="md")
@@ -331,9 +413,18 @@ if check_password():
             #     for source in sources:
             #         full_response += f"- {source}\n"
 
-            msg_placeholder.markdown(full_response)
-            print("Answer: ", full_response)
+
+
             # st.session_state.messages.append({"role": "assistant", "content": full_response})
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     # Audio stuff
     if st.session_state.last_answer:
@@ -352,22 +443,22 @@ if check_password():
 
     response.stream_to_file("output.mp3")
         
-    
-    
-    # app = get_ec_app(api_key)
-        # app = App()
-    app = embedchain_bot("pad_db", api_key)
-    data_sources = app.get_data_sources()
+    if new_method == False:
+        
+        # app = get_ec_app(api_key)
+            # app = App()
+        app = embedchain_bot("pad_db", api_key)
+        data_sources = app.get_data_sources()
 
-    # st.sidebar.write("Files in database: ", len(data_sources))
-    with st.sidebar:
-        st.divider()
-        # st.subheader("Files in database:")
-        with st.expander(f'{len(data_sources)} reliable sources VERA uses.'):
-            for i in range(len(data_sources)):
-                full_path = data_sources[i]["data_value"]
-                # Extract just the filename from the full path
-                temp_filename = os.path.basename(full_path)
-                # Use regex to only keep up to the first .pdf in the filename
-                cleaned_filename = re.sub(r'^(.+?\.pdf).*$', r'\1', temp_filename)
-                st.write(i, ": ", cleaned_filename)
+        # st.sidebar.write("Files in database: ", len(data_sources))
+        with st.sidebar:
+            st.divider()
+            # st.subheader("Files in database:")
+            with st.expander(f'{len(data_sources)} reliable sources VERA uses.'):
+                for i in range(len(data_sources)):
+                    full_path = data_sources[i]["data_value"]
+                    # Extract just the filename from the full path
+                    temp_filename = os.path.basename(full_path)
+                    # Use regex to only keep up to the first .pdf in the filename
+                    cleaned_filename = re.sub(r'^(.+?\.pdf).*$', r'\1', temp_filename)
+                    st.write(i, ": ", cleaned_filename)
