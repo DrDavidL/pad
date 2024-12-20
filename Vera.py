@@ -225,7 +225,7 @@ with st.sidebar:
                         st.stop()
                 st.session_state["add_files"] = add_files
 
-st.title("👩🏾‍⚕️ Learn about peripheral artery disease (PAD) from VERA!!")
+st.title("👩🏾‍⚕️ Learn about Peripheral Artery Disease (PAD) from VERA!!")
 st.info("VERA uses reliable sources to answer your questions about PAD.")
 
 vera_first_message ="""# Hi, I am VERA  
@@ -306,6 +306,7 @@ if check_password():
         else:
             st.session_state.messages = [{"role": "system", "content": master_prompt}, 
                                          {"role": "assistant", "content": vera_first_message}]
+            st.session_state.last_answer = vera_first_message
 
     for message in st.session_state.messages:
         if message["role"] != "system":
