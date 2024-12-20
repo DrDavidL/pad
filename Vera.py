@@ -456,10 +456,11 @@ if check_password():
     
     # Audio stuff
     if st.session_state.last_answer:
-        talk_stream("tts-1", voice="nova", input=st.session_state.last_answer)
+        
         if first_message:
             file = "static/vera_first_message.mp3"
         else:
+            talk_stream("tts-1", voice="nova", input=st.session_state.last_answer)
             file = "last_answer.mp3"
         autoplay_local_audio(file)
         st.info("Note - this is an AI synthesized voice.")          
