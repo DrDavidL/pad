@@ -230,11 +230,11 @@ st.info("VERA uses reliable sources to answer your questions about PAD.")
 
 vera_first_message ="""Hi, I am VERA, your knowledgeable guide about peripheral artery disease (PAD). My  mission is to answer your questions about PAD. 
 
-Peripheral Artery Disease (P.A.D.) is a cardiovascular condition caused by atherosclerosis. This means there reduced blood flow to the legs and feet.
-	- Arteries carry blood from the heart to the body. Veins return blood to the heart.
-	- In P.A.D., there is plaque buildup in the walls of arteries. Plaque is made of cholesterol and fat. The plaque makes arteries stiff, which is sometimes called “hardening of the arteries.” Plaque buildup can also narrow or block arteries.
-	- Over time, reduced blood flow to the feet can lead to symptoms such as pain or tiredness in the legs during walking or more severe complications like sores on the feet, severe pain, or gangrene
-	- P.A.D. also increases the risk of heart attacks and strokes.
+Peripheral Artery Disease (P.A.D.) is a cardiovascular condition caused by atherosclerosis. This means there reduced blood flow to the legs and feet.  
+	- Arteries carry blood from the heart to the body. Veins return blood to the heart.  
+	- In P.A.D., there is plaque buildup in the walls of arteries. Plaque is made of cholesterol and fat. The plaque makes arteries stiff, which is sometimes called “hardening of the arteries.” Plaque buildup can also narrow or block arteries.  
+	- Over time, reduced blood flow to the feet can lead to symptoms such as pain or tiredness in the legs during walking or more severe complications like sores on the feet, severe pain, or gangrene  
+	- P.A.D. also increases the risk of heart attacks and strokes.  
 
 If you have questions that I cannot answer, please seek help from an expert such as your healthcare team."""
 
