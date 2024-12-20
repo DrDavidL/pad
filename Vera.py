@@ -229,7 +229,7 @@ st.title("👩🏾‍⚕️ Learn about Peripheral Artery Disease (PAD) from VER
 st.info("VERA uses reliable sources to answer your questions about PAD.")
 
 vera_first_message ="""# Hi, I am VERA  
-Your knowledgeable guide about **Peripheral Artery Disease (PAD)**. My mission is to answer your questions about PAD.  
+Your knowledgeable guide about **Peripheral Artery Disease (P.A.D.)**. My mission is to answer your questions about P.A.D.  
 
 ---
 
