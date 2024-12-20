@@ -410,7 +410,7 @@ if check_password():
             else:
                 
                 final_user_prompt = f' {first_name}:  {prompt}'
-                st.session_state.messages.append({"role": "user", "content": final_user_prompt})
+                # st.session_state.messages.append({"role": "user", "content": final_user_prompt})
                 answer = llm_call(model, st.session_state.messages)
                 st.session_state.last_answer = answer
                 
