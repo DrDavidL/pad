@@ -454,7 +454,7 @@ if check_password():
     
     # Audio stuff
     if st.session_state.last_answer:
-        talk_stream("tts-1", voice="nova", input=answer)
+        talk_stream("tts-1", voice="nova", input=st.session_state.last_answer)
         autoplay_local_audio("last_answer.mp3")
         st.info("Note - this is an AI synthesized voice.")            
         os.remove("last_answer.mp3")   
