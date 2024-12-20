@@ -291,6 +291,7 @@ if check_password():
     if "last_answer" not in st.session_state:
         st.session_state.last_answer = ""
 
+    first_message = False
     if "messages" not in st.session_state:
         
         if new_method==False:
@@ -307,6 +308,7 @@ if check_password():
             st.session_state.messages = [{"role": "system", "content": master_prompt}, 
                                          {"role": "assistant", "content": vera_first_message}]
             st.session_state.last_answer = vera_first_message
+            first_message = True
 
     for message in st.session_state.messages:
         if message["role"] != "system":
@@ -455,9 +457,14 @@ if check_password():
     # Audio stuff
     if st.session_state.last_answer:
         talk_stream("tts-1", voice="nova", input=st.session_state.last_answer)
-        autoplay_local_audio("last_answer.mp3")
-        st.info("Note - this is an AI synthesized voice.")            
-        os.remove("last_answer.mp3")   
+        if first_message:
+            file = "static/vera_first_message.mp3"
+        else:
+            file = "last_answer.mp3"
+        autoplay_local_audio("file")
+        st.info("Note - this is an AI synthesized voice.")          
+        if file == "last_answer.mp3":  
+            os.remove("last_answer.mp3")   
 
     client = OpenAI()
 
