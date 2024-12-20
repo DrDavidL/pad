@@ -225,8 +225,18 @@ with st.sidebar:
                         st.stop()
                 st.session_state["add_files"] = add_files
 
-st.title("👩🏾‍⚕️ Learn about PAD from VERA!")
+st.title("👩🏾‍⚕️ Learn about peripheral artery disease (PAD) from VERA!!")
 st.info("VERA uses reliable sources to answer your questions about PAD.")
+
+vera_first_message ="""Hi, I am VERA, your knowledgeable guide about peripheral artery disease (PAD). My  mission is to answer your questions about PAD. 
+
+Peripheral Artery Disease (P.A.D.) is a cardiovascular condition caused by atherosclerosis. This means there reduced blood flow to the legs and feet.
+	•	Arteries carry blood from the heart to the body. Veins return blood to the heart.
+	•	In P.A.D., there is plaque buildup in the walls of arteries. Plaque is made of cholesterol and fat. The plaque makes arteries stiff, which is sometimes called “hardening of the arteries.” Plaque buildup can also narrow or block arteries.
+	•	Over time, reduced blood flow to the feet can lead to symptoms such as pain or tiredness in the legs during walking or more severe complications like sores on the feet, severe pain, or gangrene
+	•	P.A.D. also increases the risk of heart attacks and strokes.
+
+If you have questions that I cannot answer, please seek help from an expert such as your healthcare team."""
 
 system_prompt = """You are VERA, a nurse educator with a grandmotherly style who uses the context provided as a fact basis when answering questions about peripheral artery disease. Ensure your answers are factually sound while meeting the standard for a 5th grade reading and comprehension level. Adopt a warm, nurturing tone, almost like a grandmother explaining things to her grandchild. Follow these steps:
 
@@ -280,7 +290,8 @@ if check_password():
                 }
             ]
         else:
-            st.session_state.messages = [{"role": "system", "content": master_prompt}]
+            st.session_state.messages = [{"role": "system", "content": master_prompt}, 
+                                         {"role": "assistant", "content": vera_first_message}]
 
     for message in st.session_state.messages:
         if message["role"] != "system":
