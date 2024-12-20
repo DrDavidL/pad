@@ -461,7 +461,7 @@ if check_password():
             file = "static/vera_first_message.mp3"
         else:
             file = "last_answer.mp3"
-        autoplay_local_audio("file")
+        autoplay_local_audio(file)
         st.info("Note - this is an AI synthesized voice.")          
         if file == "last_answer.mp3":  
             os.remove("last_answer.mp3")   
