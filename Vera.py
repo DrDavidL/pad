@@ -286,7 +286,8 @@ if check_password():
     if "conversation_id" not in st.session_state:
         st.session_state.conversation_id = f"conv_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-    first_name = st.text_input("What's your first name?", key="first_name")
+    with st.sidebar:
+        first_name = st.text_input("What's your first name?", key="first_name")
     
     if "last_answer" not in st.session_state:
         st.session_state.last_answer = ""
