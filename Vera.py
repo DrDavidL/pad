@@ -468,15 +468,15 @@ if check_password():
         if file == "last_answer.mp3":  
             os.remove("last_answer.mp3")   
 
-    client = OpenAI()
+    # client = OpenAI()
 
-    response = client.audio.speech.create(
-        model="tts-1",
-        voice="alloy",
-        input="Hello world! This is a streaming test.",
-    )
+    # response = client.audio.speech.create(
+    #     model="tts-1",
+    #     voice="alloy",
+    #     input="Hello world! This is a streaming test.",
+    # )
 
-    response.stream_to_file("output.mp3")
+    # response.stream_to_file("output.mp3")
         
     if new_method == False:
         
