@@ -301,7 +301,7 @@ if check_password():
                 {
                     "role": "assistant",
                     "content": """
-                        Hi! I'm VERA and happy to answer any questions you have about P.A.D. which stands for peripheral arterial disease! 
+                        Hi! I'm VERA and happy to answer any questions you have about P.A.D. which stands for peripheral artery disease! 
                     """,
                 }
             ]
