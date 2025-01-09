@@ -229,22 +229,22 @@ st.title("👩🏾‍⚕️ Learn about Peripheral Artery Disease (PAD) from VER
 st.info("VERA uses reliable sources to answer your questions about PAD.")
 
 vera_first_message ="""# Hi, I am VERA  
-Your knowledgeable guide about **Peripheral Artery Disease (P. A. D.)**. My mission is to answer your questions about P. A. D.  
+Your knowledgeable guide about **Peripheral Artery Disease (P.A.D.)**. My mission is to answer your questions about P.A.D.  
 
 ---
 
-## What is Peripheral Artery Disease (P. A. D.)?  
-Peripheral Artery Disease (P. A. D.) is a **cardiovascular condition caused by atherosclerosis**, which reduces blood flow to the legs and feet.
+## What is Peripheral Artery Disease (P.A.D.)?  
+Peripheral Artery Disease (P.A.D.) is a **cardiovascular condition caused by atherosclerosis**, which reduces blood flow to the legs and feet.
 
 ### Key Points:
 - **Arteries** carry blood from the heart to the body, while **veins** return blood to the heart.
-- In P. A. D., there is **plaque buildup** in the walls of arteries.  
+- In P.A.D., there is **plaque buildup** in the walls of arteries.  
   - Plaque is made of **cholesterol and fat**.  
   - It makes arteries stiff (sometimes called **“hardening of the arteries”**) and can also narrow or block them.
 - Over time, reduced blood flow to the feet can lead to:
   - **Pain or tiredness** in the legs during walking.
   - More severe complications like **sores on the feet**, **severe pain**, or **gangrene**.
-- P. A. D. increases the risk of **heart attacks** and **strokes**.
+- P.A.D. increases the risk of **heart attacks** and **strokes**.
 
 ---
 
@@ -301,7 +301,7 @@ if check_password():
                 {
                     "role": "assistant",
                     "content": """
-                        Hi! I'm VERA and happy to answer any questions you have about P. A. D. which stands for peripheral artery disease! 
+                        Hi! I'm VERA and happy to answer any questions you have about P.A.D. which stands for peripheral artery disease! 
                     """,
                 }
             ]
