@@ -13,6 +13,7 @@ from new_prompt import master_prompt
 from groq import Groq
 
 import streamlit as st
+from streamlit.components.v1 import html
 
 from embedchain import App
 from embedchain.config import BaseLlmConfig
@@ -179,6 +180,8 @@ def check_admin_password():
         return True
 
 with st.sidebar:
+    
+
     st.info("VERA now starts smarter! 🧠")
     less_smart = st.checkbox("Make VERA less smart (fewer $/token)")
     new_method = st.checkbox("Use new method", value=True)
@@ -281,6 +284,15 @@ Remember to always review the context and ensure your answers are clear, accurat
 Now, here is the current user's new question:"""
 
 if check_password():
+    
+    with st.sidebar:    
+    # Define your javascript
+        my_js = """
+        <elevenlabs-convai agent-id="wUZj2fJXoMnJdhHuUumI"></elevenlabs-convai><script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>;
+        """
+
+        
+        html(my_js)
     # initialize_database()
     # Conversation Interface
     if "conversation_id" not in st.session_state:
