@@ -102,8 +102,8 @@ target/
 docs/_build/
 
 # Streamlit cache and logs
-.streamlit/
-.streamlit/secrets.toml
+
+*/secrets.toml
 cache*
 .aider*
 db/chroma.sqlite3
