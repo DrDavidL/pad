@@ -19,9 +19,8 @@ from embedchain import App
 from embedchain.config import BaseLlmConfig
 from embedchain.helpers.callbacks import StreamingStdOutCallbackHandlerYield, generate
 
-from elevenlabs import play
+from elevenlabs import play, stream
 from elevenlabs.client import ElevenLabs
-from elevenlabs import stream
 # import mpv
 
 from typing import List, Dict, Any
@@ -491,14 +490,14 @@ if check_password():
             api_key=st.secrets["elevenlabs_api_key"],
         )
 
-        audio_stream = client.generate(
+        audio = client.generate(
             text=st.session_state.last_answer,
             voice="Aria",
             model="eleven_multilingual_v2",
-            stream=True
+   
         )
         # file = "last_answer.mp3"
-        stream(audio_stream)
+        play(audio)
         
         st.info("Note - this is an AI synthesized voice.")          
         # if file == "last_answer.mp3":  
