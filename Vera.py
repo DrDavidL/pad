@@ -22,7 +22,7 @@ from embedchain.helpers.callbacks import StreamingStdOutCallbackHandlerYield, ge
 from elevenlabs import play
 from elevenlabs.client import ElevenLabs
 from elevenlabs import stream
-# import mpv
+import mpv
 
 from typing import List, Dict, Any
 
