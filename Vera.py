@@ -1,4 +1,5 @@
 import os
+import uuid
 import queue
 from openai import OpenAI
 import re
@@ -19,11 +20,12 @@ from embedchain import App
 from embedchain.config import BaseLlmConfig
 from embedchain.helpers.callbacks import StreamingStdOutCallbackHandlerYield, generate
 
-from elevenlabs import play, stream
+from elevenlabs import play, stream, VoiceSettings
 from elevenlabs.client import ElevenLabs
 # import mpv
 
-from typing import List, Dict, Any
+from typing import IO, List, Dict, Any
+from io import BytesIO
 
 # Vera.py
 from database import initialize_database, save_message, retrieve_conversations_by_filters, check_password
@@ -35,6 +37,7 @@ from database import initialize_database, save_message, retrieve_conversations_b
 DATABASE_URL = st.secrets["DATABASE_URL"]
 initialize_database()
 api_key = st.secrets["OPENAI_API_KEY"]
+client = ElevenLabs(api_key=st.secrets["elevenlabs_api_key"],)
 
 # player = mpv.MPV(input_default_bindings=True, input_vo_keyboard=True, osc=True)
 
@@ -88,6 +91,33 @@ def llm_call(model: str, messages: List[Dict[str, Any]], stream: bool = True) ->
     except Exception as e:
         st.error(f"Unexpected error during LLM call: {e}")
         return "Failed to get response due to an unexpected error."
+
+def text_to_speech_file(text: str) -> str:
+    # Calling the text_to_speech conversion API with detailed parameters
+    response = client.text_to_speech.convert(
+        voice_id="9BWtsMINqrJLrRacOk9x", # Aria pre-made voice
+        output_format="mp3_22050_32",
+        text=text,
+        model_id="eleven_flash_v2_5", 
+        voice_settings=VoiceSettings(
+            stability=0.0,
+            similarity_boost=1.0,
+            style=0.0,
+            use_speaker_boost=True,
+        ),
+    )
+    # uncomment the line below to play the audio back
+    # play(response)
+    # Generating a unique file name for the output MP3 file
+    save_file_path = "last_response.mp3"
+    # Writing the audio to a file
+    with open(save_file_path, "wb") as f:
+        for chunk in response:
+            if chunk:
+                f.write(chunk)
+    # print(f"{save_file_path}: A new audio file was saved successfully!")
+    # Return the path of the saved audio file
+    return save_file_path
 
 def talk_stream(model, voice, input):
     api_key = st.secrets["OPENAI_API_KEY"]
@@ -485,21 +515,24 @@ if check_password():
     # Audio stuff
     if st.session_state.last_answer:
         
-        # talk_stream("tts-1", voice="nova", input=st.session_state.last_answer)
-        client = ElevenLabs(
-            api_key=st.secrets["elevenlabs_api_key"],
-        )
-
-        audio = client.generate(
-            text=st.session_state.last_answer,
-            voice="Aria",
-            model="eleven_multilingual_v2",
-   
-        )
-        # file = "last_answer.mp3"
-        play(audio)
+        file_location = text_to_speech_file(st.session_state.last_answer)
+        autoplay_local_audio(file_location)
         
-        st.info("Note - this is an AI synthesized voice.")          
+        # talk_stream("tts-1", voice="nova", input=st.session_state.last_answer)
+
+####################################voice and no control from elevenlabs##################################################
+        # audio = client.generate(
+        #     text=st.session_state.last_answer,
+        #     voice="Aria",
+        #     model="eleven_multilingual_v2",
+   
+        # )
+        # # file = "last_answer.mp3"
+        # play(audio)
+        
+        # st.info("Note - this is an AI synthesized voice.")          
+        
+        ################################end voice no control###################################################
         # if file == "last_answer.mp3":  
         #     os.remove("last_answer.mp3")   
 
