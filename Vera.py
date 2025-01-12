@@ -37,7 +37,7 @@ DATABASE_URL = st.secrets["DATABASE_URL"]
 initialize_database()
 api_key = st.secrets["OPENAI_API_KEY"]
 
-
+# player = mpv.MPV(input_default_bindings=True, input_vo_keyboard=True, osc=True)
 
 def set_client(model):
     # Define the API keys and base URLs for different clients
@@ -187,15 +187,16 @@ def check_admin_password():
 with st.sidebar:
     
 
-    st.info("VERA now starts smarter! 🧠")
-    less_smart = st.checkbox("Make VERA less smart (fewer $/token)")
-    new_method = st.checkbox("Use new method", value=True)
-    if less_smart:
-        model = "gpt-4o-mini"
-        st.success("The model is now gpt-4o-mini")
-    else:
-        model = "gpt-4o"
-        st.info("The model is gpt-4o (full version)")
+    # st.info("VERA now starts smarter! 🧠")
+    # less_smart = st.checkbox("Make VERA less smart (fewer $/token)")
+    # new_method = st.checkbox("Use new method", value=True)
+    new_method = True
+    # if less_smart:
+    #     model = "gpt-4o-mini"
+    #     st.success("The model is now gpt-4o-mini")
+    # else:
+    model = "gpt-4o"
+    # st.info("The model is gpt-4o (full version)")
         
     if new_method == False:    
 
@@ -308,10 +309,10 @@ if check_password():
     if "conversation_id" not in st.session_state:
         st.session_state.conversation_id = f"conv_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-    if st.checkbox("You may give VERA your first name here."):
-        first_name = st.text_input("What's your first name (text convo - introduce yourself on calls!", key="first_name")
-    else:
-        first_name = "User"
+    # if st.checkbox("You may give VERA your first name here."):
+    #     first_name = st.text_input("What's your first name (text convo - introduce yourself on calls!", key="first_name")
+    # else:
+    first_name = "User"
     
     if "last_answer" not in st.session_state:
         st.session_state.last_answer = ""
