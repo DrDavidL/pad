@@ -19,6 +19,11 @@ from embedchain import App
 from embedchain.config import BaseLlmConfig
 from embedchain.helpers.callbacks import StreamingStdOutCallbackHandlerYield, generate
 
+from elevenlabs import play
+from elevenlabs.client import ElevenLabs
+from elevenlabs import stream
+import mpv
+
 from typing import List, Dict, Any
 
 # Vera.py
@@ -472,13 +477,25 @@ if check_password():
         
         if first_message:
             file = "static/vera_intro.mp3"
+            autoplay_local_audio(file)
         else:
-            talk_stream("tts-1", voice="nova", input=st.session_state.last_answer)
-            file = "last_answer.mp3"
-        autoplay_local_audio(file)
+            # talk_stream("tts-1", voice="nova", input=st.session_state.last_answer)
+            client = ElevenLabs(
+                api_key=st.secrets["elevenlabs_api_key"],
+            )
+
+            audio_stream = client.generate(
+                text=st.session_state.last_answer,
+                voice="Aria",
+                model="eleven_multilingual_v2",
+                stream=True
+            )
+            # file = "last_answer.mp3"
+            stream(audio_stream)
+        
         st.info("Note - this is an AI synthesized voice.")          
-        if file == "last_answer.mp3":  
-            os.remove("last_answer.mp3")   
+        # if file == "last_answer.mp3":  
+        #     os.remove("last_answer.mp3")   
 
     # client = OpenAI()
 
