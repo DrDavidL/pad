@@ -330,8 +330,8 @@ if check_password():
         
         # html(my_js)
         
-        my_js_gpt = """
-        <elevenlabs-convai agent-id="YnxvbM6HYMhMeZam0Cxw"></elevenlabs-convai><script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>
+        my_js_gpt = f"""
+        <elevenlabs-convai agent-id="{st.secrets['agent_id']}"></elevenlabs-convai><script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>
         """
         html(my_js_gpt)
     # initialize_database()
