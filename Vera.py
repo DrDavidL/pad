@@ -308,8 +308,10 @@ if check_password():
     if "conversation_id" not in st.session_state:
         st.session_state.conversation_id = f"conv_{datetime.now().strftime('%Y%m%d%H%M%S')}"
 
-    with st.sidebar:
-        first_name = st.text_input("What's your first name?", key="first_name")
+    if st.checkbox("You may give VERA your first name here."):
+        first_name = st.text_input("What's your first name (text convo - introduce yourself on calls!", key="first_name")
+    else:
+        first_name = "User"
     
     if "last_answer" not in st.session_state:
         st.session_state.last_answer = ""
@@ -330,8 +332,9 @@ if check_password():
         else:
             st.session_state.messages = [{"role": "system", "content": master_prompt}, 
                                          {"role": "assistant", "content": vera_first_message}]
-            st.session_state.last_answer = vera_first_message
+            # st.session_state.last_answer = vera_first_message
             first_message = True
+
 
     for message in st.session_state.messages:
         if message["role"] != "system":
@@ -473,30 +476,28 @@ if check_password():
     
     
     
-    
+    if first_message:
+        file = "static/vera_intro.mp3"
+        autoplay_local_audio(file)
     
     
     
     # Audio stuff
     if st.session_state.last_answer:
         
-        if first_message:
-            file = "static/vera_intro.mp3"
-            autoplay_local_audio(file)
-        else:
-            # talk_stream("tts-1", voice="nova", input=st.session_state.last_answer)
-            client = ElevenLabs(
-                api_key=st.secrets["elevenlabs_api_key"],
-            )
+        # talk_stream("tts-1", voice="nova", input=st.session_state.last_answer)
+        client = ElevenLabs(
+            api_key=st.secrets["elevenlabs_api_key"],
+        )
 
-            audio_stream = client.generate(
-                text=st.session_state.last_answer,
-                voice="Aria",
-                model="eleven_multilingual_v2",
-                stream=True
-            )
-            # file = "last_answer.mp3"
-            stream(audio_stream)
+        audio_stream = client.generate(
+            text=st.session_state.last_answer,
+            voice="Aria",
+            model="eleven_multilingual_v2",
+            stream=True
+        )
+        # file = "last_answer.mp3"
+        stream(audio_stream)
         
         st.info("Note - this is an AI synthesized voice.")          
         # if file == "last_answer.mp3":  
