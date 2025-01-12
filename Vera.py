@@ -292,12 +292,17 @@ if check_password():
     
     with st.sidebar:    
     # Define your javascript
-        my_js = """
-        <elevenlabs-convai agent-id="wUZj2fJXoMnJdhHuUumI"></elevenlabs-convai><script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>;
-        """
+        # my_js = """
+        # <elevenlabs-convai agent-id="wUZj2fJXoMnJdhHuUumI"></elevenlabs-convai><script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>;
+        # """
 
         
-        html(my_js)
+        # html(my_js)
+        
+        my_js_gpt = """
+        <elevenlabs-convai agent-id="YnxvbM6HYMhMeZam0Cxw"></elevenlabs-convai><script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>
+        """
+        html(my_js_gpt)
     # initialize_database()
     # Conversation Interface
     if "conversation_id" not in st.session_state:
