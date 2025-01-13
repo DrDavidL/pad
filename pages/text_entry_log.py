@@ -192,7 +192,7 @@ if check_password():
             # Display conversations
             for convo in filtered_conversations:
                 start_time = unix_to_date(convo["start_time_unix_secs"])
-                with st.expander(f"Message Count: {convo['message_count']} Date: {start_time}"):
+                with st.expander(f"Message Count: {convo['message_count']} || Date: {start_time}"):
                     st.write(f"Message Count: {convo['message_count']}")
                     st.write(f"Conversation ID: {convo['conversation_id']}")
                     st.write(f"Agent Name: {convo['agent_name']}")
