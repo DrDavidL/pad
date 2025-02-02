@@ -235,7 +235,7 @@ with st.sidebar:
     #     model = "gpt-4o-mini"
     #     st.success("The model is now gpt-4o-mini")
     # else:
-    model = st.selectbox("Select a model", ["gpt-4o","o3-mini"], index=0)
+    
     
     # st.info("The model is gpt-4o (full version)")
         
@@ -331,19 +331,28 @@ Remember to always review the context and ensure your answers are clear, accurat
 Now, here is the current user's new question:"""
 
 if check_password():
-    
+    model = st.sidebar.selectbox("Select a model", ["gpt-4o","o3-mini"], index=0)
+    # model = "gpt-4o"
     with st.sidebar:    
     # Define your javascript
         # my_js = """
         # <elevenlabs-convai agent-id="wUZj2fJXoMnJdhHuUumI"></elevenlabs-convai><script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>;
         # """
 
-        
-        # html(my_js)
-        
         my_js_gpt = f"""
-        <elevenlabs-convai agent-id="{st.secrets['agent_id']}"></elevenlabs-convai><script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>
-        """
+            <elevenlabs-convai agent-id="{st.secrets['agent_id']}"></elevenlabs-convai><script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>
+            """
+        
+        
+        # # html(my_js)
+        # if model != "o3-mini":
+        #     my_js_gpt = f"""
+        #     <elevenlabs-convai agent-id="{st.secrets['agent_id']}"></elevenlabs-convai><script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>
+        #     """
+        # else:
+        #     my_js_gpt = f"""
+        #     <elevenlabs-convai agent-id="{st.secrets['agent_id_o3']}"></elevenlabs-convai><script src="https://elevenlabs.io/convai-widget/index.js" async type="text/javascript"></script>
+        #     """
         html(my_js_gpt)
     # initialize_database()
     # Conversation Interface
