@@ -48,6 +48,7 @@ def set_client(model):
         "gemma2-9b-it": Groq(api_key=st.secrets["GROQ_API_KEY"]),
         "gpt-4o": OpenAI(base_url="https://api.openai.com/v1", api_key=st.secrets["OPENAI_API_KEY"]),
         "gpt-4o-mini": OpenAI(base_url="https://api.openai.com/v1", api_key=st.secrets["OPENAI_API_KEY"]),
+        "o3-mini": OpenAI(base_url="https://api.openai.com/v1", api_key=st.secrets["OPENAI_API_KEY"]),
     }
     # Return the appropriate client or default to OpenRouter API
     client = clients.get(model)
@@ -60,13 +61,22 @@ def llm_call(model: str, messages: List[Dict[str, Any]], stream: bool = True) ->
         # Set the appropriate client based on the model
         client = set_client(model)
         # Create a completion request with the language model
-        completion = client.chat.completions.create(
-            model=model, 
-            messages=messages, 
-            temperature=0.5, 
-            max_tokens=1000, 
-            stream=stream
-        )
+        if model != "o3-mini":
+            completion = client.chat.completions.create(
+                model=model, 
+                messages=messages, 
+                temperature=0.5, 
+                max_completion_tokens=5000, 
+                stream=stream
+            )
+        else:
+            completion = client.chat.completions.create(
+                model=model, 
+                messages=messages, 
+                # temperature=0.5, 
+                max_completion_tokens=5000, 
+                stream=stream
+            )
         if stream:
             # Initialize an empty response string and a Streamlit placeholder for streaming output
             full_response = ""
@@ -225,7 +235,8 @@ with st.sidebar:
     #     model = "gpt-4o-mini"
     #     st.success("The model is now gpt-4o-mini")
     # else:
-    model = "gpt-4o"
+    model = st.selectbox("Select a model", ["gpt-4o","o3-mini"], index=0)
+    
     # st.info("The model is gpt-4o (full version)")
         
     if new_method == False:    
