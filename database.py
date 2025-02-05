@@ -6,10 +6,12 @@ import streamlit as st
 # Database configuration
 DATABASE_URL = st.secrets["DATABASE_URL"]
 
+
 # Function to connect to the PostgreSQL database
 def get_db_connection():
     conn = psycopg2.connect(DATABASE_URL)
     return conn
+
 
 # Initialize database and create tables if they do not exist
 def initialize_database():
@@ -29,21 +31,28 @@ def initialize_database():
     cursor.close()
     conn.close()
 
+
 # Save a message to the database
 def save_message(user_name, conversation_id, role, content):
     conn = get_db_connection()
     cursor = conn.cursor()
     timestamp = datetime.now()
-    cursor.execute("""
+    cursor.execute(
+        """
     INSERT INTO conversations (user_name, timestamp, conversation_id, role, content)
     VALUES (%s, %s, %s, %s, %s);
-    """, (user_name, timestamp, conversation_id, role, content))
+    """,
+        (user_name, timestamp, conversation_id, role, content),
+    )
     conn.commit()
     cursor.close()
     conn.close()
 
+
 # Retrieve conversations by date range and optional filters for user name or conversation ID
-def retrieve_conversations_by_filters(start_date, end_date, user_name=None, conversation_id=None):
+def retrieve_conversations_by_filters(
+    start_date, end_date, user_name=None, conversation_id=None
+):
     conn = get_db_connection()
     cursor = conn.cursor()
 
@@ -61,7 +70,7 @@ def retrieve_conversations_by_filters(start_date, end_date, user_name=None, conv
     if user_name:
         query += " AND user_name ILIKE %s"
         params.append(f"%{user_name}%")
-    
+
     if conversation_id:
         query += " AND conversation_id = %s"
         params.append(conversation_id)
@@ -73,24 +82,32 @@ def retrieve_conversations_by_filters(start_date, end_date, user_name=None, conv
     conn.close()
     return results
 
+
 def check_password():
     """Returns `True` if the user has entered the correct password."""
 
     def password_entered():
         """Checks whether the entered password is correct."""
-        st.session_state["password_correct"] = st.session_state["password"] == st.secrets["password"]
+        st.session_state["password_correct"] = (
+            st.session_state["password"] == st.secrets["password"]
+        )
 
     if "password_correct" not in st.session_state:
         # First run, show input for password.
-        st.text_input("Password", type="password", on_change=password_entered, key="password")
-        st.write("*Please contact David Liebovitz, MD if you need an updated password for access.*")
+        st.text_input(
+            "Password", type="password", on_change=password_entered, key="password"
+        )
+        st.write(
+            "*Please contact David Liebovitz, MD if you need an updated password for access.*"
+        )
         return False
     elif not st.session_state["password_correct"]:
         # Password not correct, show input + error.
-        st.text_input("Password", type="password", on_change=password_entered, key="password")
+        st.text_input(
+            "Password", type="password", on_change=password_entered, key="password"
+        )
         st.error("😕 Password incorrect")
         return False
     else:
         # Password correct.
         return True
-    
