@@ -63,7 +63,7 @@ ADMIN_PASSWORD=your-secure-admin-password
 CORS_ORIGINS=http://localhost:3000
 ```
 
-### Step 5: Deploy
+### Step 5: Deploy (again if needed)
 
 1. Click "Deploy" (Railway will build and deploy automatically)
 2. Wait 2-3 minutes for build to complete
