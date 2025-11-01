@@ -9,12 +9,14 @@ language = "python"
 # Python version (must be 3.12 or lower for embedchain compatibility)
 pythonVersion = "3.12"
 
-# Build commands - explicitly use vera-api/requirements.txt
-installCommand = "cd vera-api && pip install --upgrade pip && pip install -r requirements.txt"
+# Build commands
+# NOTE: Set Root Directory to "vera-api" in Railway dashboard
+# Then all commands run from within vera-api/
+installCommand = "pip install --upgrade pip && pip install -r requirements.txt"
 
 [start]
-# Start command for the application (run from vera-api directory)
-command = "cd vera-api && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+# Start command (runs from vera-api/ if Root Directory is set correctly)
+command = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 
 [health]
 # Health check configuration
@@ -30,20 +32,20 @@ PYTHONUNBUFFERED = "1"
 PYTHONDONTWRITEBYTECODE = "1"
 
 [watch]
-# Only trigger rebuilds for changes in vera-api directory
+# Only trigger rebuilds for changes in these paths (relative to vera-api/ root)
 include = [
-    "vera-api/app/**/*.py",
-    "vera-api/requirements.txt",
-    "vera-api/alembic.ini",
-    "vera-api/alembic/**/*.py"
+    "app/**/*.py",
+    "requirements.txt",
+    "alembic.ini",
+    "alembic/**/*.py"
 ]
 
 # Ignore these paths
 exclude = [
-    "vera-api/__pycache__/**",
-    "vera-api/*.pyc",
-    "vera-api/alembic/versions/**",
-    "vera-api/audio_files/**",
-    "vera-api/.env",
-    "vera-api/*.log"
+    "__pycache__/**",
+    "*.pyc",
+    "alembic/versions/**",
+    "audio_files/**",
+    ".env",
+    "*.log"
 ]

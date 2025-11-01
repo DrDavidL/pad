@@ -2,7 +2,9 @@
 builder = "railpack"
 
 [deploy]
-startCommand = "cd vera-api && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+# NOTE: Railway should have Root Directory set to "vera-api" in dashboard
+# Then this command runs from within that directory
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
@@ -11,4 +13,4 @@ restartPolicyMaxRetries = 10
 [watch]
 # Only watch changes in vera-api directory (not Streamlit app)
 include = ["vera-api/**"]
-exclude = ["vera-api/alembic/versions/**", "vera-api/__pycache__/**", "streamlit/**", "requirements.txt"]
+exclude = ["vera-api/alembic/versions/**", "vera-api/__pycache__/**"]
