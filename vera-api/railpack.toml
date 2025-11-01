@@ -6,18 +6,15 @@ name = "vera-api"
 language = "python"
 
 [build]
-# Python version
-pythonVersion = "3.11"
+# Python version (must be 3.12 or lower for embedchain compatibility)
+pythonVersion = "3.12"
 
-# Build commands
-installCommand = "pip install --upgrade pip && pip install -r requirements.txt"
-
-# Working directory (relative to repo root)
-workingDirectory = "vera-api"
+# Build commands - explicitly use vera-api/requirements.txt
+installCommand = "cd vera-api && pip install --upgrade pip && pip install -r requirements.txt"
 
 [start]
-# Start command for the application
-command = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+# Start command for the application (run from vera-api directory)
+command = "cd vera-api && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
 
 [health]
 # Health check configuration
@@ -33,20 +30,20 @@ PYTHONUNBUFFERED = "1"
 PYTHONDONTWRITEBYTECODE = "1"
 
 [watch]
-# Only trigger rebuilds for changes in these paths
+# Only trigger rebuilds for changes in vera-api directory
 include = [
-    "app/**/*.py",
-    "requirements.txt",
-    "alembic.ini",
-    "alembic/**/*.py"
+    "vera-api/app/**/*.py",
+    "vera-api/requirements.txt",
+    "vera-api/alembic.ini",
+    "vera-api/alembic/**/*.py"
 ]
 
 # Ignore these paths
 exclude = [
-    "__pycache__/**",
-    "*.pyc",
-    "alembic/versions/**",
-    "audio_files/**",
-    ".env",
-    "*.log"
+    "vera-api/__pycache__/**",
+    "vera-api/*.pyc",
+    "vera-api/alembic/versions/**",
+    "vera-api/audio_files/**",
+    "vera-api/.env",
+    "vera-api/*.log"
 ]
