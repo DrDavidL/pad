@@ -55,9 +55,11 @@ ELEVENLABS_API_KEY=sk_...
 # Admin
 ADMIN_PASSWORD=[your-admin-password]
 
-# CORS (add your Vercel URL after frontend deployment)
+# CORS (comma-separated list - add your Vercel URL after frontend deployment)
 CORS_ORIGINS=http://localhost:3000,https://your-app.vercel.app
 ```
+
+**IMPORTANT**: `CORS_ORIGINS` must be a **comma-separated string** (no spaces around commas is fine, the parser handles it).
 
 ## Deployment Process
 
