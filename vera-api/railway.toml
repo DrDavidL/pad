@@ -1,6 +1,5 @@
 [build]
-builder = "nixpacks"
-buildCommand = "pip install -r requirements.txt"
+builder = "railpack"
 
 [deploy]
 startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
@@ -8,3 +7,8 @@ healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 10
+
+[watch]
+# Only watch changes in vera-api directory
+include = ["vera-api/**"]
+exclude = ["vera-api/alembic/versions/**", "vera-api/__pycache__/**"]

@@ -33,9 +33,12 @@ Complete guide to deploy VERA frontend and backend with automatic CI/CD from Git
 
 1. Click on the service that was created
 2. Go to "Settings" tab
-3. **Root Directory**: Set to `vera-api`
-4. **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-5. **Health Check Path**: `/health`
+3. **IMPORTANT - Root Directory**: Set to `vera-api`
+   - This ensures Railway builds the FastAPI app, not the Streamlit app
+4. **Builder**: Should auto-detect "railpack" (Python)
+5. **Start Command**: Auto-detected from `railpack.toml`
+   - If not set: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+6. **Health Check Path**: `/health`
 
 ### Step 4: Add Environment Variables
 
@@ -307,6 +310,13 @@ Shows:
 
 **Error**: `Database connection failed`
 **Fix**: Check `DATABASE_URL` in Railway environment variables
+
+**Error**: Railway detects wrong app (Streamlit instead of FastAPI)
+**Fix**:
+1. Go to Settings → Service
+2. Set **Root Directory** to `vera-api`
+3. Verify `railpack.toml` exists in `vera-api/` directory
+4. Redeploy the service
 
 ### Frontend Build Fails
 

@@ -22,8 +22,9 @@ Quick checklist to deploy VERA with CI/CD in 15 minutes.
 1. [ ] Sign up at [railway.app](https://railway.app) with GitHub
 2. [ ] Create new project → Deploy from GitHub repo
 3. [ ] Select your `pad` repository
-4. [ ] Configure service:
-   - [ ] Root Directory: `vera-api`
+4. [ ] **CRITICAL**: Configure service settings:
+   - [ ] **Root Directory**: Set to `vera-api` (prevents Railway from detecting Streamlit app)
+   - [ ] Builder: Should auto-detect "railpack"
    - [ ] Health Check Path: `/health`
 5. [ ] Add environment variables (see `.env.production.template`)
 6. [ ] Click Deploy

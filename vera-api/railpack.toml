@@ -1,0 +1,52 @@
+# Railpack Configuration for VERA FastAPI Backend
+# Ensures Railway builds the FastAPI app, not the Streamlit app
+
+[project]
+name = "vera-api"
+language = "python"
+
+[build]
+# Python version
+pythonVersion = "3.11"
+
+# Build commands
+installCommand = "pip install --upgrade pip && pip install -r requirements.txt"
+
+# Working directory (relative to repo root)
+workingDirectory = "vera-api"
+
+[start]
+# Start command for the application
+command = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+
+[health]
+# Health check configuration
+path = "/health"
+timeout = 100
+
+[environment]
+# Environment type
+type = "production"
+
+# Python-specific settings
+PYTHONUNBUFFERED = "1"
+PYTHONDONTWRITEBYTECODE = "1"
+
+[watch]
+# Only trigger rebuilds for changes in these paths
+include = [
+    "app/**/*.py",
+    "requirements.txt",
+    "alembic.ini",
+    "alembic/**/*.py"
+]
+
+# Ignore these paths
+exclude = [
+    "__pycache__/**",
+    "*.pyc",
+    "alembic/versions/**",
+    "audio_files/**",
+    ".env",
+    "*.log"
+]
