@@ -15,6 +15,7 @@ downloads/
 eggs/
 .eggs/
 lib/
+!vera-frontend/lib/  # Exception: Next.js lib directory
 lib64/
 parts/
 sdist/
