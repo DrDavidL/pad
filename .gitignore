@@ -111,6 +111,7 @@ db/74fef158-da3e-4b88-9cf5-a099376e0885/index_metadata.pickle
 
 # LLM models and large files
 models/
+!vera-api/app/models/  # Exception: FastAPI database models
 *.model
 *.bin
 *.h5
