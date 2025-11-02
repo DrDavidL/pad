@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Message, WebSocketMessage } from '@/types';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { VeraAPI, generateConversationId } from '@/lib/api';
@@ -29,15 +29,21 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
   const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isInCallRef = useRef(false); // Track call state for speech recognition
 
-  // WebSocket connection
-  const { isConnected, connect, send } = useWebSocket({
-    url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/api/v1/chat/ws/chat',
-    onMessage: handleWebSocketMessage,
-    onOpen: () => {},
-    onError: () => {},
-  });
+  // Audio playback function - must be defined before handleWebSocketMessage
+  const playAudio = useCallback((base64Audio: string) => {
+    if (audioRef.current) {
+      audioRef.current.src = `data:audio/mp3;base64,${base64Audio}`;
+      audioRef.current.play().catch((error) => {
+        console.error('Audio playback failed:', error);
+        console.log('Audio data length:', base64Audio?.length);
+      });
+    } else {
+      console.error('Audio ref is null');
+    }
+  }, []);
 
-  function handleWebSocketMessage(data: WebSocketMessage) {
+  // Stabilize WebSocket message handler with useCallback to prevent reconnection loop
+  const handleWebSocketMessage = useCallback((data: WebSocketMessage) => {
     switch (data.type) {
       case 'user_message_saved':
         break;
@@ -63,8 +69,11 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
         break;
 
       case 'audio':
+        console.log('Received audio message:', data.audio_base64 ? 'Audio data present' : 'No audio data');
         if (data.audio_base64) {
           playAudio(data.audio_base64);
+        } else {
+          console.error('No audio_base64 in audio message');
         }
         break;
 
@@ -72,12 +81,26 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
         setIsTyping(false);
         break;
     }
-  }
+  }, [conversationId, playAudio]);
+
+  // WebSocket connection - initialize with stable message handler
+  const { isConnected, connect, send } = useWebSocket({
+    url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/api/v1/chat/ws/chat',
+    onMessage: handleWebSocketMessage,
+    onOpen: () => console.log('WebSocket connected successfully'),
+    onError: (error) => console.error('WebSocket error:', error),
+    onClose: () => console.log('WebSocket closed'),
+  });
 
   // Initialize WebSocket
   useEffect(() => {
     connect();
-  }, [connect]);
+
+    // Cleanup on unmount - important for React StrictMode in dev
+    return () => {
+      disconnect();
+    };
+  }, [connect, disconnect]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -143,7 +166,9 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
   }
 
   function handleSendMessage(text: string) {
-    if (!text.trim() || !isConnected) return;
+    if (!text.trim()) return;
+
+    console.log('Attempting to send message. isConnected:', isConnected);
 
     const userMessage: Message = {
       conversation_id: conversationId,
@@ -157,25 +182,25 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
     setIsTyping(true);
     setCurrentResponse('');
 
-    send({
+    const sent = send({
       token,
       research_id: researchId,
       conversation_id: conversationId,
       message: text.trim(),
       model: 'gpt-4o',
     });
+
+    if (!sent) {
+      console.error('Failed to send message - WebSocket not connected');
+      setIsTyping(false);
+    } else {
+      console.log('Message sent successfully');
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     handleSendMessage(inputText);
-  }
-
-  function playAudio(base64Audio: string) {
-    if (audioRef.current) {
-      audioRef.current.src = `data:audio/mp3;base64,${base64Audio}`;
-      audioRef.current.play().catch(() => {});
-    }
   }
 
   // Initialize speech recognition
@@ -382,12 +407,12 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
               onChange={(e) => setInputText(e.target.value)}
               placeholder={isInCall ? 'Speak or type a message' : 'Message'}
               className="w-full px-4 py-2 bg-white border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
-              disabled={!isConnected || isTyping}
+              disabled={isTyping}
             />
           </div>
           <button
             type="submit"
-            disabled={!inputText.trim() || !isConnected || isTyping}
+            disabled={!inputText.trim() || isTyping}
             className="p-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           >
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">

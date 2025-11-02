@@ -23,6 +23,20 @@ export function useWebSocket({
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
+  // Use refs to store callbacks to prevent connect function from being recreated
+  const onMessageRef = useRef(onMessage);
+  const onErrorRef = useRef(onError);
+  const onOpenRef = useRef(onOpen);
+  const onCloseRef = useRef(onClose);
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    onMessageRef.current = onMessage;
+    onErrorRef.current = onError;
+    onOpenRef.current = onOpen;
+    onCloseRef.current = onClose;
+  }, [onMessage, onError, onOpen, onClose]);
+
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       return;
@@ -37,13 +51,13 @@ export function useWebSocket({
         console.log('WebSocket connected');
         setIsConnected(true);
         setIsConnecting(false);
-        onOpen?.();
+        onOpenRef.current?.();
       };
 
       ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data) as WebSocketMessage;
-          onMessage?.(data);
+          onMessageRef.current?.(data);
         } catch (err) {
           console.error('Failed to parse WebSocket message:', err);
         }
@@ -51,7 +65,7 @@ export function useWebSocket({
 
       ws.onerror = (error) => {
         // WebSocket error handler
-        onError?.(error);
+        onErrorRef.current?.(error);
       };
 
       ws.onclose = () => {
@@ -59,7 +73,7 @@ export function useWebSocket({
         setIsConnected(false);
         setIsConnecting(false);
         wsRef.current = null;
-        onClose?.();
+        onCloseRef.current?.();
 
         // Attempt to reconnect after 3 seconds
         reconnectTimeoutRef.current = setTimeout(() => {
@@ -73,7 +87,7 @@ export function useWebSocket({
       console.error('Failed to create WebSocket:', err);
       setIsConnecting(false);
     }
-  }, [url, onMessage, onError, onOpen, onClose]);
+  }, [url]); // Only url as dependency now - callbacks are in refs
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {

@@ -243,16 +243,21 @@ async def websocket_chat_endpoint(websocket: WebSocket, db: Session = Depends(ge
 
             # Generate TTS audio
             try:
+                print(f"Generating TTS for response (length: {len(full_response)})")
                 audio_path, audio_bytes = tts_service.generate_speech(full_response)
                 audio_base64 = tts_service.get_audio_base64(audio_path)
+                print(f"TTS generated successfully. Base64 length: {len(audio_base64)}")
 
                 await websocket.send_json({
                     "type": "audio",
                     "audio_base64": audio_base64,
                     "audio_url": audio_path
                 })
+                print("Audio message sent to client")
             except Exception as e:
                 print(f"TTS generation failed: {e}")
+                import traceback
+                traceback.print_exc()
                 audio_path = None
 
             # Save assistant message
