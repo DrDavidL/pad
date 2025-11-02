@@ -19,7 +19,11 @@ class TTSService:
         self.client = ElevenLabs(api_key=settings.ELEVENLABS_API_KEY)
         self.voice_id = settings.ELEVENLABS_VOICE_ID
         self.model_id = settings.ELEVENLABS_MODEL_ID
-        self.audio_dir = Path("audio_files")
+        # Use /tmp directory for cloud deployments (Railway, etc.)
+        if os.environ.get("RAILWAY_ENVIRONMENT"):
+            self.audio_dir = Path("/tmp/audio_files")
+        else:
+            self.audio_dir = Path("audio_files")
         self.audio_dir.mkdir(exist_ok=True)
 
     def generate_speech(

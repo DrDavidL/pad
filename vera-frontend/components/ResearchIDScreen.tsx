@@ -83,7 +83,7 @@ export default function ResearchIDScreen({ onValidated }: ResearchIDScreenProps)
                 setResearchId(e.target.value);
                 setError(null);
               }}
-              placeholder="e.g., RID001"
+              placeholder="1234"
               className="w-full px-4 py-3 text-lg border border-gray-300 rounded-xl focus:ring-2 focus:ring-imessage-blue focus:border-transparent outline-none transition-all"
               disabled={isLoading}
               autoFocus
@@ -140,13 +140,6 @@ export default function ResearchIDScreen({ onValidated }: ResearchIDScreenProps)
             )}
           </button>
         </form>
-
-        {/* Test IDs hint */}
-        <div className="text-center">
-          <p className="text-xs text-gray-500">
-            Test IDs: RID001 - RID010
-          </p>
-        </div>
       </div>
     </div>
   );

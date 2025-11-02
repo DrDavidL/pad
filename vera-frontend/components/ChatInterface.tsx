@@ -202,8 +202,15 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
       handleSendMessage(transcript);
     };
 
-    recognition.onerror = () => {
-      endCall();
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error:', event.error);
+      // Only end call on fatal errors
+      if (event.error === 'no-speech' || event.error === 'aborted') {
+        // Don't end call for these errors, just log them
+        console.log('Transient speech recognition error, continuing...');
+      } else {
+        endCall();
+      }
     };
 
     recognition.onend = () => {
@@ -213,11 +220,15 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
           if (isInCallRef.current && recognitionRef.current) {
             try {
               recognitionRef.current.start();
-            } catch (e) {
-              // Already started or stopped
+            } catch (e: any) {
+              // If restart fails, log and try ending the call gracefully
+              console.error('Failed to restart speech recognition:', e);
+              if (e.message !== 'recognition is already started') {
+                endCall();
+              }
             }
           }
-        }, 300); // Small delay to ensure previous session ended
+        }, 500); // Increased delay for more reliable restart
       }
     };
 
