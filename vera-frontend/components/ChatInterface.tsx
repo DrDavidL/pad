@@ -22,12 +22,29 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
   const [callDuration, setCallDuration] = useState(0);
   const [showTimeWarning, setShowTimeWarning] = useState(false);
 
+  // Audio enabled state (for browser autoplay policy)
+  const [audioEnabled, setAudioEnabled] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const recognitionRef = useRef<any>(null);
   const callTimerRef = useRef<NodeJS.Timeout | null>(null);
   const warningTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isInCallRef = useRef(false); // Track call state for speech recognition
+
+  // Enable audio on first user interaction (required by browser autoplay policy)
+  const enableAudio = useCallback(() => {
+    if (!audioEnabled && audioRef.current) {
+      // Try to play a silent audio to unlock audio playback
+      audioRef.current.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAABhADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD/////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//sQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
+      audioRef.current.play().then(() => {
+        console.log('Audio enabled successfully');
+        setAudioEnabled(true);
+      }).catch(() => {
+        console.log('Audio enable failed, will try again on next interaction');
+      });
+    }
+  }, [audioEnabled]);
 
   // Audio playback function - must be defined before handleWebSocketMessage
   const playAudio = useCallback((base64Audio: string) => {
@@ -36,6 +53,7 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
       audioRef.current.play().catch((error) => {
         console.error('Audio playback failed:', error);
         console.log('Audio data length:', base64Audio?.length);
+        console.log('This may be due to browser autoplay policy. Try sending a message first.');
       });
     } else {
       console.error('Audio ref is null');
@@ -168,6 +186,9 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
   function handleSendMessage(text: string) {
     if (!text.trim()) return;
 
+    // Enable audio on first user interaction (for browser autoplay policy)
+    enableAudio();
+
     console.log('Attempting to send message. isConnected:', isConnected);
 
     const userMessage: Message = {
@@ -261,6 +282,9 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
   }
 
   function startCall() {
+    // Enable audio on user interaction (for browser autoplay policy)
+    enableAudio();
+
     if (!recognitionRef.current) {
       recognitionRef.current = initializeSpeechRecognition();
     }
