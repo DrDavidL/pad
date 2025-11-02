@@ -84,7 +84,7 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
   }, [conversationId, playAudio]);
 
   // WebSocket connection - initialize with stable message handler
-  const { isConnected, connect, send } = useWebSocket({
+  const { isConnected, connect, disconnect, send } = useWebSocket({
     url: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/api/v1/chat/ws/chat',
     onMessage: handleWebSocketMessage,
     onOpen: () => console.log('WebSocket connected successfully'),
