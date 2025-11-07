@@ -35,10 +35,13 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
   // Enable audio on first user interaction (required by browser autoplay policy)
   const enableAudio = useCallback(() => {
     if (!audioEnabled && audioRef.current) {
+      // Set volume to maximum for speaker mode
+      audioRef.current.volume = 1.0;
+
       // Try to play a silent audio to unlock audio playback
       audioRef.current.src = 'data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASW5mbwAAAA8AAAACAAABhADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD/////////////////////////////////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUExBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//sQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
       audioRef.current.play().then(() => {
-        console.log('Audio enabled successfully');
+        console.log('Audio enabled successfully in speaker mode');
         setAudioEnabled(true);
       }).catch(() => {
         console.log('Audio enable failed, will try again on next interaction');
@@ -49,6 +52,8 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
   // Audio playback function - must be defined before handleWebSocketMessage
   const playAudio = useCallback((base64Audio: string) => {
     if (audioRef.current) {
+      // Ensure volume is at maximum for speaker mode
+      audioRef.current.volume = 1.0;
       audioRef.current.src = `data:audio/mp3;base64,${base64Audio}`;
       audioRef.current.play().catch((error) => {
         console.error('Audio playback failed:', error);
@@ -119,6 +124,17 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
       disconnect();
     };
   }, [connect, disconnect]);
+
+  // Initialize audio element for speaker mode
+  useEffect(() => {
+    if (audioRef.current) {
+      // Set to maximum volume for speaker mode
+      audioRef.current.volume = 1.0;
+      // Ensure it plays through speaker on mobile devices
+      audioRef.current.setAttribute('playsinline', 'true');
+      console.log('Audio initialized in speaker mode with volume:', audioRef.current.volume);
+    }
+  }, []);
 
   // Auto-scroll to bottom
   useEffect(() => {
