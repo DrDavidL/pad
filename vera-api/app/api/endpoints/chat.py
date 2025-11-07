@@ -192,7 +192,7 @@ async def websocket_chat_endpoint(websocket: WebSocket, db: Session = Depends(ge
             research_id = message_data.get("research_id")
             conversation_id = message_data.get("conversation_id")
             user_message = message_data.get("message")
-            model = message_data.get("model", "gpt-4o")
+            model = message_data.get("model", "gpt-4.1")
 
             # Save user message
             conversation_service.save_message(
