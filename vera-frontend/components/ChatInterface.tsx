@@ -52,13 +52,54 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
   // Audio playback function - must be defined before handleWebSocketMessage
   const playAudio = useCallback((base64Audio: string) => {
     if (audioRef.current) {
+      // Stop speech recognition to prevent feedback loop
+      const wasListening = isInCallRef.current && recognitionRef.current;
+      if (wasListening) {
+        try {
+          recognitionRef.current.stop();
+          console.log('Stopped speech recognition during audio playback');
+        } catch (e) {
+          console.log('Recognition already stopped');
+        }
+      }
+
       // Ensure volume is at maximum for speaker mode
       audioRef.current.volume = 1.0;
       audioRef.current.src = `data:audio/mp3;base64,${base64Audio}`;
+
+      // Restart speech recognition after audio finishes
+      audioRef.current.onended = () => {
+        console.log('Audio playback ended');
+        if (wasListening && isInCallRef.current) {
+          setTimeout(() => {
+            if (isInCallRef.current && recognitionRef.current) {
+              try {
+                recognitionRef.current.start();
+                console.log('Restarted speech recognition after audio playback');
+              } catch (e) {
+                console.log('Failed to restart recognition:', e);
+              }
+            }
+          }, 300); // Brief delay before restarting listening
+        }
+      };
+
       audioRef.current.play().catch((error) => {
         console.error('Audio playback failed:', error);
         console.log('Audio data length:', base64Audio?.length);
         console.log('This may be due to browser autoplay policy. Try sending a message first.');
+        // Restart recognition even if audio playback failed
+        if (wasListening && isInCallRef.current) {
+          setTimeout(() => {
+            if (isInCallRef.current && recognitionRef.current) {
+              try {
+                recognitionRef.current.start();
+              } catch (e) {
+                console.log('Failed to restart recognition after error:', e);
+              }
+            }
+          }, 300);
+        }
       });
     } else {
       console.error('Audio ref is null');
@@ -132,6 +173,15 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
       audioRef.current.volume = 1.0;
       // Ensure it plays through speaker on mobile devices
       audioRef.current.setAttribute('playsinline', 'true');
+
+      // Prevent volume from being reduced by browser
+      audioRef.current.addEventListener('volumechange', () => {
+        if (audioRef.current && audioRef.current.volume < 1.0) {
+          console.log('Volume was reduced, resetting to maximum');
+          audioRef.current.volume = 1.0;
+        }
+      });
+
       console.log('Audio initialized in speaker mode with volume:', audioRef.current.volume);
     }
   }, []);
@@ -276,12 +326,13 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
     };
 
     recognition.onend = () => {
-      // If call is still active, restart listening after a brief delay
-      if (isInCallRef.current) {
+      // Only restart if we're in a call AND not currently playing audio
+      if (isInCallRef.current && audioRef.current && audioRef.current.paused) {
         setTimeout(() => {
-          if (isInCallRef.current && recognitionRef.current) {
+          if (isInCallRef.current && recognitionRef.current && audioRef.current && audioRef.current.paused) {
             try {
               recognitionRef.current.start();
+              console.log('Restarted speech recognition (not during audio playback)');
             } catch (e: any) {
               // If restart fails, log and try ending the call gracefully
               console.error('Failed to restart speech recognition:', e);
