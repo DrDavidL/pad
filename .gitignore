@@ -194,6 +194,9 @@ public/build/
 logs/
 *.log
 yarn.lock
+
+# Research IDs (keep confidential)
+vera-api/scripts/RESEARCH_IDS_README.md
  sources/AHA PAD_Fact_Sheet_Eng.txt
 sources/Endovascular techniques for lower extremity revascularization - UpToDate.txt
 sources/AHA PAD_Fact_Sheet_Eng.txt

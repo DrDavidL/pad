@@ -9,6 +9,10 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from app.db.base import SessionLocal
 from app.models.database import ResearchID
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 
 def seed_research_ids():
@@ -28,10 +32,28 @@ def seed_research_ids():
         ("RID010", "Test research ID 010"),
     ]
 
+    # Official research participant IDs from environment variable
+    # Format: RESEARCH_IDS="ID1,ID2,ID3,..." (comma-separated)
+    official_ids = []
+    research_ids_env = os.getenv("RESEARCH_IDS", "")
+
+    if research_ids_env:
+        # Parse comma-separated IDs and create tuples
+        for idx, rid in enumerate(research_ids_env.split(","), 1):
+            rid = rid.strip()
+            if rid:
+                official_ids.append((rid, f"Official research participant {idx:02d}"))
+        print(f"Loaded {len(official_ids)} official research IDs from environment\n")
+    else:
+        print("No RESEARCH_IDS environment variable found - only test IDs will be seeded\n")
+
+    # Combine all IDs
+    all_ids = test_ids + official_ids
+
     created_count = 0
     skipped_count = 0
 
-    for research_id, notes in test_ids:
+    for research_id, notes in all_ids:
         # Check if already exists
         existing = db.query(ResearchID).filter(
             ResearchID.research_id == research_id
