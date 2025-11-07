@@ -327,9 +327,9 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
   }
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-purple-50 to-purple-100">
-      {/* Header - Messages style */}
-      <div className="flex-shrink-0 bg-purple-50 border-b border-purple-200 px-4 py-3">
+    <div className="fixed inset-0 flex flex-col bg-gradient-to-b from-purple-50 to-purple-100">
+      {/* Header - Fixed at top */}
+      <div className="fixed top-0 left-0 right-0 z-10 bg-purple-50 border-b border-purple-200 px-4 py-3 safe-area-top">
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
             V
@@ -371,8 +371,8 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
         )}
       </div>
 
-      {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 messages-scroll">
+      {/* Messages area - Scrollable content with padding for fixed header/footer */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 messages-scroll mt-[72px] mb-[88px]">
         {messages.length === 0 && (
           <div className="text-center py-12 text-gray-500">
             <div className="w-16 h-16 mx-auto mb-4 bg-purple-500 rounded-full flex items-center justify-center">
@@ -421,8 +421,8 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input area */}
-      <div className="flex-shrink-0 bg-purple-50 border-t border-purple-200 px-4 py-3">
+      {/* Input area - Fixed at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 z-10 bg-purple-50 border-t border-purple-200 px-4 py-3 safe-area-bottom">
         <form onSubmit={handleSubmit} className="flex items-end space-x-2">
           <div className="flex-1">
             <input
