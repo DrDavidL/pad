@@ -34,16 +34,17 @@ npm install @elevenlabs/react lucide-react
 
 Add to `.env.local`:
 ```env
-NEXT_PUBLIC_ELEVENLABS_AGENT_ID=YnxvbM6HYMhMeZam0Cxw
+NEXT_PUBLIC_ELEVENLABS_AGENT_ID=your_agent_id_here
 ```
 
-**Security Note**: This ID is already in `.gitignore` (line 69) and will not be committed to git.
+**Security Note**: This ID is already in `.gitignore` and will not be committed to git.
+Get your Agent ID from https://elevenlabs.io/app/conversational-ai
 
 ### For Production
 
 Update your deployment environment variables (Railway, Vercel, etc.):
 ```
-NEXT_PUBLIC_ELEVENLABS_AGENT_ID=YnxvbM6HYMhMeZam0Cxw
+NEXT_PUBLIC_ELEVENLABS_AGENT_ID=your_agent_id_here
 ```
 
 ## How It Works

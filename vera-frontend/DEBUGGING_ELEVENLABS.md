@@ -25,7 +25,7 @@ cat .env.local
 
 Should contain:
 ```
-NEXT_PUBLIC_ELEVENLABS_AGENT_ID=YnxvbM6HYMhMeZam0Cxw
+NEXT_PUBLIC_ELEVENLABS_AGENT_ID=your_agent_id_here
 ```
 
 4. If missing or incorrect, fix it and **restart the dev server**:
