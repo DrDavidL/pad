@@ -1,0 +1,365 @@
+'use client';
+
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useConversation } from '@elevenlabs/react';
+import { PhoneIcon, PhoneOffIcon, SendIcon } from 'lucide-react';
+
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
+interface ElevenLabsChatInterfaceProps {
+  researchId: string;
+  token: string;
+}
+
+export default function ElevenLabsChatInterface({
+  researchId,
+  token,
+}: ElevenLabsChatInterfaceProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [textInput, setTextInput] = useState('');
+  const [conversationState, setConversationState] = useState<
+    'disconnected' | 'connecting' | 'connected' | 'disconnecting' | null
+  >('disconnected');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const isTextOnlyModeRef = useRef<boolean>(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const conversation = useConversation({
+    onConnect: () => {
+      console.log('ElevenLabs connected');
+    },
+    onDisconnect: () => {
+      console.log('ElevenLabs disconnected');
+    },
+    onMessage: (message) => {
+      if (message.message) {
+        const newMessage: ChatMessage = {
+          role: message.source === 'user' ? 'user' : 'assistant',
+          content: message.message,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, newMessage]);
+
+        // Sync to backend API
+        syncMessageToBackend(newMessage);
+      }
+    },
+    onError: (error) => {
+      console.error('ElevenLabs error:', error);
+      setConversationState('disconnected');
+      setErrorMessage('Connection error. Please try again.');
+    },
+  });
+
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Sync messages to backend for data collection
+  const syncMessageToBackend = useCallback(
+    async (message: ChatMessage) => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+
+        // Save to conversation history
+        await fetch(`${apiUrl}/chat/message`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            research_id: researchId,
+            role: message.role,
+            content: message.content,
+            timestamp: message.timestamp.toISOString(),
+            provider: 'elevenlabs',
+          }),
+        });
+      } catch (error) {
+        console.error('Failed to sync message to backend:', error);
+      }
+    },
+    [researchId, token]
+  );
+
+  const getMicStream = useCallback(async () => {
+    if (mediaStreamRef.current) return mediaStreamRef.current;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      setErrorMessage(null);
+      return stream;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'NotAllowedError') {
+        setErrorMessage('Please enable microphone permissions in your browser.');
+      }
+      throw error;
+    }
+  }, []);
+
+  const startConversation = useCallback(
+    async (textOnly: boolean = true) => {
+      try {
+        isTextOnlyModeRef.current = textOnly;
+
+        if (!textOnly) {
+          await getMicStream();
+        }
+
+        const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
+        if (!agentId) {
+          setErrorMessage('ElevenLabs Agent ID not configured');
+          return;
+        }
+
+        await conversation.startSession({
+          agentId: agentId,
+          connectionType: textOnly ? 'websocket' : 'webrtc',
+          overrides: {
+            conversation: {
+              textOnly: textOnly,
+            },
+            agent: {
+              firstMessage: textOnly ? '' : undefined,
+            },
+          },
+          onStatusChange: (status) => setConversationState(status.status),
+        });
+      } catch (error) {
+        console.error(error);
+        setConversationState('disconnected');
+        setErrorMessage('Failed to start conversation');
+      }
+    },
+    [conversation, getMicStream]
+  );
+
+  const handleVoiceCall = useCallback(async () => {
+    if (conversationState === 'disconnected' || conversationState === null) {
+      setConversationState('connecting');
+      try {
+        await startConversation(false); // Voice mode
+      } catch {
+        setConversationState('disconnected');
+      }
+    } else if (conversationState === 'connected') {
+      conversation.endSession();
+      setConversationState('disconnected');
+
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+        mediaStreamRef.current = null;
+      }
+    }
+  }, [conversationState, conversation, startConversation]);
+
+  const handleSendText = useCallback(async () => {
+    if (!textInput.trim()) return;
+
+    const messageToSend = textInput;
+
+    if (conversationState === 'disconnected' || conversationState === null) {
+      const userMessage: ChatMessage = {
+        role: 'user',
+        content: messageToSend,
+        timestamp: new Date(),
+      };
+      setTextInput('');
+      setConversationState('connecting');
+
+      try {
+        await startConversation(true); // Text mode
+        setMessages([userMessage]);
+        syncMessageToBackend(userMessage);
+        conversation.sendUserMessage(messageToSend);
+      } catch (error) {
+        console.error('Failed to start conversation:', error);
+        setConversationState('disconnected');
+      }
+    } else if (conversationState === 'connected') {
+      const newMessage: ChatMessage = {
+        role: 'user',
+        content: messageToSend,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, newMessage]);
+      syncMessageToBackend(newMessage);
+      setTextInput('');
+      conversation.sendUserMessage(messageToSend);
+    }
+  }, [textInput, conversationState, conversation, startConversation, syncMessageToBackend]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSendText();
+      }
+    },
+    [handleSendText]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      if (conversationState === 'connected') {
+        conversation.endSession();
+      }
+    };
+  }, []);
+
+  const isCallActive = conversationState === 'connected' && !isTextOnlyModeRef.current;
+  const isConnected = conversationState === 'connected';
+
+  return (
+    <div className="fixed inset-0 flex flex-col bg-gradient-to-b from-purple-50 to-purple-100">
+      {/* Header - Fixed at top */}
+      <div className="fixed top-0 left-0 right-0 z-10 bg-purple-50 border-b border-purple-200 px-4 py-3 safe-area-top">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-semibold">
+            V
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-gray-900">VERA</h2>
+            <p className="text-xs text-gray-500">
+              {errorMessage ? (
+                <span className="text-red-600">{errorMessage}</span>
+              ) : conversationState === 'disconnected' || conversationState === null ? (
+                'Ready to chat'
+              ) : conversationState === 'connected' ? (
+                isCallActive ? '🎤 Voice call active' : 'Connected'
+              ) : conversationState === 'connecting' ? (
+                'Connecting...'
+              ) : (
+                'Disconnecting...'
+              )}
+            </p>
+          </div>
+          {/* Voice call button */}
+          <button
+            onClick={handleVoiceCall}
+            className={`p-3 rounded-full transition-all ${
+              isCallActive
+                ? 'bg-red-500 text-white hover:bg-red-600'
+                : 'bg-green-500 text-white hover:bg-green-600'
+            }`}
+            title={isCallActive ? 'End voice call' : 'Start voice call'}
+            disabled={conversationState === 'connecting' || conversationState === 'disconnecting'}
+          >
+            {isCallActive ? (
+              <PhoneOffIcon className="w-5 h-5" />
+            ) : (
+              <PhoneIcon className="w-5 h-5" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Messages area - Scrollable content with padding for fixed header/footer */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 messages-scroll mt-[72px] mb-[88px]">
+        {messages.length === 0 && (
+          <div className="text-center py-12 text-gray-500">
+            <div className="w-16 h-16 mx-auto mb-4 bg-purple-500 rounded-full flex items-center justify-center">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+            </div>
+            <p className="text-sm font-medium">Ask VERA about Peripheral Artery Disease (PAD)</p>
+            <p className="text-xs mt-2">
+              {isCallActive
+                ? '🎤 Listening... speak your question'
+                : 'Type a message or tap the phone icon for voice chat'}
+            </p>
+            <p className="text-xs mt-2 text-purple-600">Powered by ElevenLabs AI</p>
+          </div>
+        )}
+
+        {messages.map((message, index) => (
+          <MessageBubble key={index} message={message} />
+        ))}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input area - Fixed at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 z-10 bg-purple-50 border-t border-purple-200 px-4 py-3 safe-area-bottom">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendText();
+          }}
+          className="flex items-end space-x-2"
+        >
+          <div className="flex-1">
+            <input
+              type="text"
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={isCallActive ? 'Speak or type a message' : 'Message'}
+              className="w-full px-4 py-2 bg-white border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+              disabled={conversationState === 'connecting' || conversationState === 'disconnecting'}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={
+              !textInput.trim() ||
+              conversationState === 'connecting' ||
+              conversationState === 'disconnecting'
+            }
+            className="p-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+          >
+            <SendIcon className="w-5 h-5" />
+          </button>
+        </form>
+
+        {isCallActive && (
+          <p className="text-xs text-center text-purple-700 mt-2">
+            🎤 Voice call active - Speak now or type your message
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Message bubble component
+function MessageBubble({ message }: { message: ChatMessage }) {
+  const isUser = message.role === 'user';
+
+  return (
+    <div className={`flex message-bubble ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`max-w-[75%] rounded-2xl px-4 py-2 ${
+          isUser
+            ? 'bg-purple-500 text-white rounded-br-md'
+            : 'bg-gray-200 text-gray-900 rounded-bl-md'
+        }`}
+      >
+        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{message.content}</p>
+        <p className={`text-xs mt-1 ${isUser ? 'text-purple-100' : 'text-gray-500'}`}>
+          {message.timestamp.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+          })}
+        </p>
+      </div>
+    </div>
+  );
+}

@@ -5,6 +5,7 @@ import IPhoneFrame from '@/components/IPhoneFrame';
 import ResearchIDScreen from '@/components/ResearchIDScreen';
 import DisclaimerScreen from '@/components/DisclaimerScreen';
 import ChatInterface from '@/components/ChatInterface';
+import ElevenLabsChatInterface from '@/components/ElevenLabsChatInterface';
 import { VeraAPI } from '@/lib/api';
 import { AppScreen } from '@/types';
 
@@ -12,6 +13,7 @@ export default function Home() {
   const [screen, setScreen] = useState<AppScreen>('research-id');
   const [researchId, setResearchId] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [useElevenLabs, setUseElevenLabs] = useState<boolean>(true); // Default to ElevenLabs
 
   // Restore session from localStorage
   useEffect(() => {
@@ -74,7 +76,24 @@ export default function Home() {
       )}
 
       {screen === 'chat' && researchId && token && (
-        <ChatInterface researchId={researchId} token={token} />
+        <div className="relative h-full">
+          {/* Mode toggle button */}
+          <div className="absolute top-2 right-2 z-20">
+            <button
+              onClick={() => setUseElevenLabs(!useElevenLabs)}
+              className="px-3 py-1 bg-white border border-purple-300 rounded-full text-xs font-medium text-purple-700 hover:bg-purple-50 transition-colors shadow-sm"
+            >
+              {useElevenLabs ? '⚡ ElevenLabs' : '🤖 OpenAI'}
+            </button>
+          </div>
+
+          {/* Render selected chat interface */}
+          {useElevenLabs ? (
+            <ElevenLabsChatInterface researchId={researchId} token={token} />
+          ) : (
+            <ChatInterface researchId={researchId} token={token} />
+          )}
+        </div>
       )}
     </IPhoneFrame>
   );
