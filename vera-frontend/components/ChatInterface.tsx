@@ -401,9 +401,9 @@ export default function ChatInterface({ researchId, token }: ChatInterfaceProps)
                 />
               </svg>
             </div>
-            <p className="text-sm">Ask VERA about Peripheral Artery Disease</p>
+            <p className="text-sm">Ask VERA about Peripheral Artery Disease (PAD)</p>
             <p className="text-xs mt-2">
-              {isInCall ? '🎤 Listening... speak your question' : 'Click the phone icon to start a voice call'}
+              {isInCall ? '🎤 Listening... speak your question' : 'Click the phone icon if you prefer to start a voice call'}
             </p>
           </div>
         )}
