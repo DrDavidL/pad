@@ -63,3 +63,21 @@ class TTSResponse(BaseModel):
     audio_url: str
     duration_seconds: Optional[float] = None
     text_length: int
+
+
+class MessageSaveRequest(BaseModel):
+    """Request to save a message from frontend (ElevenLabs or OpenAI)"""
+    research_id: str
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=10000)
+    timestamp: str  # ISO format datetime string
+    provider: Literal["elevenlabs", "openai"] = "openai"
+    elevenlabs_conversation_id: Optional[str] = None
+    elevenlabs_message_id: Optional[str] = None
+
+
+class MessageSaveResponse(BaseModel):
+    """Response after saving a message"""
+    success: bool
+    message_id: int
+    timestamp: datetime

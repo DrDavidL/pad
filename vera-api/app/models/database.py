@@ -66,6 +66,13 @@ class Conversation(Base):
     model_used = Column(String(100), nullable=True)  # Track which LLM was used
     audio_url = Column(String(500), nullable=True)  # Path to TTS audio file if generated
 
+    # Provider tracking
+    provider = Column(String(20), default="openai", nullable=True)  # 'elevenlabs' or 'openai'
+
+    # ElevenLabs-specific fields
+    elevenlabs_conversation_id = Column(String(255), nullable=True)
+    elevenlabs_message_id = Column(String(255), nullable=True)
+
     # Relationships
     research_user = relationship("ResearchID", back_populates="conversations")
 

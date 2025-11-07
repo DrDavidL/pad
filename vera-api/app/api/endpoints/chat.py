@@ -13,7 +13,9 @@ from app.schemas.conversation import (
     MessageResponse,
     ConversationHistoryRequest,
     ConversationHistoryResponse,
-    StreamChatRequest
+    StreamChatRequest,
+    MessageSaveRequest,
+    MessageSaveResponse
 )
 from app.core.security import get_current_user, verify_token
 from app.services.llm_service import llm_service
@@ -97,6 +99,62 @@ async def send_message(
         timestamp=assistant_message.timestamp,
         model_used=assistant_message.model_used,
         audio_url=assistant_message.audio_url
+    )
+
+
+@router.post("/save-message", response_model=MessageSaveResponse)
+async def save_message_from_frontend(
+    data: MessageSaveRequest,
+    current_user: ResearchID = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Save a single message from the frontend (ElevenLabs or OpenAI).
+
+    This endpoint is used by the frontend to sync messages to the database
+    for research data collection. It handles both ElevenLabs and OpenAI messages.
+    """
+    # Verify user matches research_id in request
+    if current_user.research_id != data.research_id:
+        raise HTTPException(status_code=403, detail="Research ID mismatch")
+
+    # Parse timestamp from ISO format
+    from datetime import datetime
+    try:
+        timestamp = datetime.fromisoformat(data.timestamp.replace('Z', '+00:00'))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid timestamp format")
+
+    # Generate conversation_id if using ElevenLabs
+    # ElevenLabs has its own conversation_id, but we still need our internal format
+    conversation_id = data.elevenlabs_conversation_id or f"conv_{datetime.now().strftime('%Y%m%d%H%M%S')}_{data.research_id}"
+
+    # Get the research_id_fk
+    research_user = db.query(ResearchID).filter(ResearchID.research_id == data.research_id).first()
+    if not research_user:
+        raise HTTPException(status_code=404, detail="Research ID not found")
+
+    # Create conversation record
+    from app.models.database import Conversation
+    message = Conversation(
+        research_id_fk=research_user.id,
+        conversation_id=conversation_id,
+        role=data.role,
+        content=data.content,
+        timestamp=timestamp,
+        provider=data.provider,
+        elevenlabs_conversation_id=data.elevenlabs_conversation_id,
+        elevenlabs_message_id=data.elevenlabs_message_id
+    )
+
+    db.add(message)
+    db.commit()
+    db.refresh(message)
+
+    return MessageSaveResponse(
+        success=True,
+        message_id=message.id,
+        timestamp=message.timestamp
     )
 
 

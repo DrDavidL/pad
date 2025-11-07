@@ -8,6 +8,8 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  conversationId?: string;
+  messageId?: string;
 }
 
 interface ElevenLabsChatInterfaceProps {
@@ -25,6 +27,7 @@ export default function ElevenLabsChatInterface({
     'disconnected' | 'connecting' | 'connected' | 'disconnecting' | null
   >('disconnected');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [elevenLabsConversationId, setElevenLabsConversationId] = useState<string | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const isTextOnlyModeRef = useRef<boolean>(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -32,16 +35,27 @@ export default function ElevenLabsChatInterface({
   const conversation = useConversation({
     onConnect: () => {
       console.log('ElevenLabs connected');
+      setErrorMessage(null);
     },
     onDisconnect: () => {
       console.log('ElevenLabs disconnected');
+      setElevenLabsConversationId(null);
     },
     onMessage: (message) => {
+      console.log('ElevenLabs message received:', message);
+
+      // Track conversation ID from ElevenLabs
+      if (message.conversationId) {
+        setElevenLabsConversationId(message.conversationId);
+      }
+
       if (message.message) {
         const newMessage: ChatMessage = {
           role: message.source === 'user' ? 'user' : 'assistant',
           content: message.message,
           timestamp: new Date(),
+          conversationId: message.conversationId || elevenLabsConversationId || undefined,
+          messageId: message.id || undefined,
         };
         setMessages((prev) => [...prev, newMessage]);
 
@@ -52,7 +66,10 @@ export default function ElevenLabsChatInterface({
     onError: (error) => {
       console.error('ElevenLabs error:', error);
       setConversationState('disconnected');
-      setErrorMessage('Connection error. Please try again.');
+      setErrorMessage(`Connection error: ${error.message || 'Please try again'}`);
+    },
+    onDebug: (debug) => {
+      console.log('ElevenLabs debug:', debug);
     },
   });
 
@@ -67,8 +84,14 @@ export default function ElevenLabsChatInterface({
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
+        console.log('Syncing message to backend:', {
+          research_id: researchId,
+          role: message.role,
+          content: message.content.substring(0, 50) + '...',
+        });
+
         // Save to conversation history
-        await fetch(`${apiUrl}/chat/message`, {
+        const response = await fetch(`${apiUrl}/chat/save-message`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -80,8 +103,16 @@ export default function ElevenLabsChatInterface({
             content: message.content,
             timestamp: message.timestamp.toISOString(),
             provider: 'elevenlabs',
+            elevenlabs_conversation_id: message.conversationId,
+            elevenlabs_message_id: message.messageId,
           }),
         });
+
+        if (!response.ok) {
+          console.error('Backend sync failed:', response.status, response.statusText);
+        } else {
+          console.log('Message synced successfully');
+        }
       } catch (error) {
         console.error('Failed to sync message to backend:', error);
       }
@@ -108,17 +139,30 @@ export default function ElevenLabsChatInterface({
   const startConversation = useCallback(
     async (textOnly: boolean = true) => {
       try {
+        console.log('Starting ElevenLabs conversation, textOnly:', textOnly);
         isTextOnlyModeRef.current = textOnly;
 
         if (!textOnly) {
+          console.log('Requesting microphone access...');
           await getMicStream();
         }
 
         const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
+        console.log('Agent ID configured:', agentId ? 'Yes' : 'No');
+
         if (!agentId) {
-          setErrorMessage('ElevenLabs Agent ID not configured');
+          const error = 'ElevenLabs Agent ID not configured. Check .env.local file.';
+          console.error(error);
+          setErrorMessage(error);
+          setConversationState('disconnected');
           return;
         }
+
+        console.log('Starting session with config:', {
+          agentId: agentId.substring(0, 5) + '...',
+          connectionType: textOnly ? 'websocket' : 'webrtc',
+          textOnly,
+        });
 
         await conversation.startSession({
           agentId: agentId,
@@ -131,12 +175,17 @@ export default function ElevenLabsChatInterface({
               firstMessage: textOnly ? '' : undefined,
             },
           },
-          onStatusChange: (status) => setConversationState(status.status),
+          onStatusChange: (status) => {
+            console.log('Status changed to:', status.status);
+            setConversationState(status.status);
+          },
         });
-      } catch (error) {
-        console.error(error);
+
+        console.log('Session started successfully');
+      } catch (error: any) {
+        console.error('Failed to start conversation:', error);
         setConversationState('disconnected');
-        setErrorMessage('Failed to start conversation');
+        setErrorMessage(`Failed to start: ${error.message || 'Unknown error'}`);
       }
     },
     [conversation, getMicStream]

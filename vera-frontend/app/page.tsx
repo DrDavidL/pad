@@ -77,11 +77,11 @@ export default function Home() {
 
       {screen === 'chat' && researchId && token && (
         <div className="relative h-full">
-          {/* Mode toggle button */}
-          <div className="absolute top-2 right-2 z-20">
+          {/* Mode toggle button - positioned below header to avoid overlap */}
+          <div className="absolute top-[80px] left-1/2 transform -translate-x-1/2 z-20">
             <button
               onClick={() => setUseElevenLabs(!useElevenLabs)}
-              className="px-3 py-1 bg-white border border-purple-300 rounded-full text-xs font-medium text-purple-700 hover:bg-purple-50 transition-colors shadow-sm"
+              className="px-4 py-1.5 bg-white border-2 border-purple-300 rounded-full text-xs font-semibold text-purple-700 hover:bg-purple-50 transition-colors shadow-lg"
             >
               {useElevenLabs ? '⚡ ElevenLabs' : '🤖 OpenAI'}
             </button>
