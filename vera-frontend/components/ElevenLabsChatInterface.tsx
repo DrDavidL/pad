@@ -51,14 +51,57 @@ export default function ElevenLabsChatInterface({
         pendingMessageRef.current = null;
       }
     },
-    onDisconnect: () => {
+    onDisconnect: async () => {
       console.log('ElevenLabs disconnected');
+
+      // If we had a conversation ID and were in voice mode, fetch the transcript
+      if (elevenLabsConversationId && !isTextOnlyModeRef.current) {
+        console.log('Fetching conversation transcript for:', elevenLabsConversationId);
+        try {
+          // Fetch conversation history from ElevenLabs API
+          const response = await fetch(
+            `https://api.elevenlabs.io/v1/convai/conversations/${elevenLabsConversationId}`,
+            {
+              headers: {
+                'xi-api-key': elevenLabsApiKey || '',
+              },
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('Conversation transcript:', data);
+
+            // Extract messages from the transcript
+            if (data.transcript && Array.isArray(data.transcript)) {
+              const transcriptMessages: ChatMessage[] = data.transcript.map((item: any) => ({
+                role: item.role === 'user' ? 'user' : 'assistant',
+                content: item.message || item.text || '',
+                timestamp: new Date(item.timestamp || Date.now()),
+                conversationId: elevenLabsConversationId,
+              })).filter((msg: ChatMessage) => msg.content);
+
+              if (transcriptMessages.length > 0) {
+                console.log('Adding transcript messages:', transcriptMessages.length);
+                setMessages(transcriptMessages);
+
+                // Sync all messages to backend
+                transcriptMessages.forEach(msg => syncMessageToBackend(msg));
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch conversation transcript:', error);
+        }
+      }
+
       setElevenLabsConversationId(null);
     },
     onMessage: (message) => {
       console.log('ElevenLabs message received:', {
         source: message.source,
         message: message.message,
+        type: (message as any).type,
         fullMessage: message,
       });
 
@@ -95,6 +138,25 @@ export default function ElevenLabsChatInterface({
     },
     onDebug: (debug) => {
       console.log('ElevenLabs debug:', debug);
+
+      // Capture conversation ID from debug events
+      if (debug && typeof debug === 'object') {
+        const debugObj = debug as any;
+        if (debugObj.conversationId) {
+          console.log('Captured conversation ID from debug:', debugObj.conversationId);
+          setElevenLabsConversationId(debugObj.conversationId);
+        }
+        if (debugObj.message && debugObj.message.conversation_id) {
+          console.log('Captured conversation ID from message:', debugObj.message.conversation_id);
+          setElevenLabsConversationId(debugObj.message.conversation_id);
+        }
+      }
+    },
+    onModeChange: (mode: any) => {
+      console.log('ElevenLabs mode changed:', mode);
+    },
+    onStatusChange: (status: any) => {
+      console.log('ElevenLabs status changed:', status);
     },
   });
 
