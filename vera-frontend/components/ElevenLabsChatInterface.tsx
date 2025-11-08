@@ -33,6 +33,7 @@ export default function ElevenLabsChatInterface({
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const isTextOnlyModeRef = useRef<boolean>(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const pendingMessageRef = useRef<string | null>(null);
 
   // Get ElevenLabs API key from environment
   const elevenLabsApiKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY;
@@ -42,13 +43,24 @@ export default function ElevenLabsChatInterface({
     onConnect: () => {
       console.log('ElevenLabs connected');
       setErrorMessage(null);
+
+      // Send pending message if there is one
+      if (pendingMessageRef.current) {
+        console.log('Sending pending message:', pendingMessageRef.current);
+        conversation.sendUserMessage(pendingMessageRef.current);
+        pendingMessageRef.current = null;
+      }
     },
     onDisconnect: () => {
       console.log('ElevenLabs disconnected');
       setElevenLabsConversationId(null);
     },
     onMessage: (message) => {
-      console.log('ElevenLabs message received:', message);
+      console.log('ElevenLabs message received:', {
+        source: message.source,
+        message: message.message,
+        fullMessage: message,
+      });
 
       // Track conversation ID from ElevenLabs (if available in metadata)
       const conversationId = (message as any).conversationId || elevenLabsConversationId;
@@ -57,6 +69,7 @@ export default function ElevenLabsChatInterface({
       }
 
       if (message.message) {
+        console.log('Adding message to chat:', message.message);
         const newMessage: ChatMessage = {
           role: message.source === 'user' ? 'user' : 'assistant',
           content: message.message,
@@ -64,10 +77,15 @@ export default function ElevenLabsChatInterface({
           conversationId: conversationId || undefined,
           messageId: (message as any).id || undefined,
         };
-        setMessages((prev) => [...prev, newMessage]);
+        setMessages((prev) => {
+          console.log('Previous messages:', prev.length);
+          return [...prev, newMessage];
+        });
 
         // Sync to backend API
         syncMessageToBackend(newMessage);
+      } else {
+        console.log('Message has no content, skipping');
       }
     },
     onError: (error) => {
@@ -241,13 +259,19 @@ export default function ElevenLabsChatInterface({
       setConversationState('connecting');
 
       try {
-        await startConversation(true); // Text mode
+        // Add user message to display immediately
         setMessages([userMessage]);
         syncMessageToBackend(userMessage);
-        conversation.sendUserMessage(messageToSend);
+
+        // Store message to send when connected
+        pendingMessageRef.current = messageToSend;
+
+        // Start text-only conversation
+        await startConversation(true); // Text mode (will send message in onConnect)
       } catch (error) {
         console.error('Failed to start conversation:', error);
         setConversationState('disconnected');
+        pendingMessageRef.current = null;
       }
     } else if (conversationState === 'connected') {
       const newMessage: ChatMessage = {
