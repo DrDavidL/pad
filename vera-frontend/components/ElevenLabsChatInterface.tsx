@@ -44,9 +44,10 @@ export default function ElevenLabsChatInterface({
     onMessage: (message) => {
       console.log('ElevenLabs message received:', message);
 
-      // Track conversation ID from ElevenLabs
-      if (message.conversationId) {
-        setElevenLabsConversationId(message.conversationId);
+      // Track conversation ID from ElevenLabs (if available in metadata)
+      const conversationId = (message as any).conversationId || elevenLabsConversationId;
+      if ((message as any).conversationId) {
+        setElevenLabsConversationId((message as any).conversationId);
       }
 
       if (message.message) {
@@ -54,7 +55,7 @@ export default function ElevenLabsChatInterface({
           role: message.source === 'user' ? 'user' : 'assistant',
           content: message.message,
           timestamp: new Date(),
-          conversationId: message.conversationId || elevenLabsConversationId || undefined,
+          conversationId: conversationId || undefined,
           messageId: message.id || undefined,
         };
         setMessages((prev) => [...prev, newMessage]);
