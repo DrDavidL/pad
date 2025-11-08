@@ -56,7 +56,7 @@ export default function ElevenLabsChatInterface({
           content: message.message,
           timestamp: new Date(),
           conversationId: conversationId || undefined,
-          messageId: message.id || undefined,
+          messageId: (message as any).id || undefined,
         };
         setMessages((prev) => [...prev, newMessage]);
 
@@ -67,7 +67,7 @@ export default function ElevenLabsChatInterface({
     onError: (error) => {
       console.error('ElevenLabs error:', error);
       setConversationState('disconnected');
-      setErrorMessage(`Connection error: ${error.message || 'Please try again'}`);
+      setErrorMessage(`Connection error: ${typeof error === 'string' ? error : (error as any).message || 'Please try again'}`);
     },
     onDebug: (debug) => {
       console.log('ElevenLabs debug:', debug);
@@ -269,7 +269,6 @@ export default function ElevenLabsChatInterface({
   }, []);
 
   const isCallActive = conversationState === 'connected' && !isTextOnlyModeRef.current;
-  const isConnected = conversationState === 'connected';
 
   return (
     <div className="fixed inset-0 flex flex-col bg-gradient-to-b from-purple-50 to-purple-100">
