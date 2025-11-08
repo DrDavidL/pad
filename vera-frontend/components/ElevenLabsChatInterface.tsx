@@ -32,7 +32,11 @@ export default function ElevenLabsChatInterface({
   const isTextOnlyModeRef = useRef<boolean>(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Get ElevenLabs API key from environment
+  const elevenLabsApiKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY;
+
   const conversation = useConversation({
+    apiKey: elevenLabsApiKey,
     onConnect: () => {
       console.log('ElevenLabs connected');
       setErrorMessage(null);
@@ -150,9 +154,18 @@ export default function ElevenLabsChatInterface({
 
         const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID;
         console.log('Agent ID configured:', agentId ? 'Yes' : 'No');
+        console.log('API Key configured:', elevenLabsApiKey ? 'Yes' : 'No');
 
         if (!agentId) {
           const error = 'ElevenLabs Agent ID not configured. Check .env.local file.';
+          console.error(error);
+          setErrorMessage(error);
+          setConversationState('disconnected');
+          return;
+        }
+
+        if (!elevenLabsApiKey) {
+          const error = 'ElevenLabs API Key not configured. Add NEXT_PUBLIC_ELEVENLABS_API_KEY to .env.local';
           console.error(error);
           setErrorMessage(error);
           setConversationState('disconnected');
