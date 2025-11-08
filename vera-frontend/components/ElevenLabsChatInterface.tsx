@@ -165,7 +165,7 @@ export default function ElevenLabsChatInterface({
         }
 
         if (!elevenLabsApiKey) {
-          const error = 'ElevenLabs API Key not configured. Add NEXT_PUBLIC_ELEVENLABS_API_KEY to .env.local';
+          const error = 'ElevenLabs API Key not configured. Set NEXT_PUBLIC_ELEVENLABS_API_KEY environment variable.';
           console.error(error);
           setErrorMessage(error);
           setConversationState('disconnected');
