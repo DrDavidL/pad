@@ -46,6 +46,8 @@ Quick checklist to deploy VERA with CI/CD in 15 minutes.
    ```
    NEXT_PUBLIC_API_URL=https://your-railway-url.up.railway.app/api/v1
    NEXT_PUBLIC_WS_URL=wss://your-railway-url.up.railway.app/api/v1/chat/ws/chat
+   NEXT_PUBLIC_ELEVENLABS_API_KEY=sk_your_elevenlabs_api_key
+   NEXT_PUBLIC_ELEVENLABS_AGENT_ID=your_agent_id
    ```
 5. [ ] Click Deploy
 6. [ ] Wait for deployment to complete (2-3 min)

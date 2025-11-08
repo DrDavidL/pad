@@ -15,11 +15,13 @@ interface ChatMessage {
 interface ElevenLabsChatInterfaceProps {
   researchId: string;
   token: string;
+  onLogout?: () => void;
 }
 
 export default function ElevenLabsChatInterface({
   researchId,
   token,
+  onLogout,
 }: ElevenLabsChatInterfaceProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [textInput, setTextInput] = useState('');
@@ -307,6 +309,16 @@ export default function ElevenLabsChatInterface({
               )}
             </p>
           </div>
+          {/* Logout button */}
+          {onLogout && (
+            <button
+              onClick={onLogout}
+              className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors"
+              title="Logout"
+            >
+              Logout
+            </button>
+          )}
           {/* Voice call button */}
           <button
             onClick={handleVoiceCall}

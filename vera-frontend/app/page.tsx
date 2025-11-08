@@ -62,6 +62,18 @@ export default function Home() {
     }
   };
 
+  const handleLogout = () => {
+    // Clear state
+    setToken(null);
+    setResearchId(null);
+    setScreen('research-id');
+
+    // Clear localStorage
+    localStorage.removeItem('vera_token');
+    localStorage.removeItem('vera_research_id');
+    localStorage.removeItem('vera_token_expiry');
+  };
+
   return (
     <IPhoneFrame>
       {screen === 'research-id' && (
@@ -89,7 +101,7 @@ export default function Home() {
 
           {/* Render selected chat interface */}
           {useElevenLabs ? (
-            <ElevenLabsChatInterface researchId={researchId} token={token} />
+            <ElevenLabsChatInterface researchId={researchId} token={token} onLogout={handleLogout} />
           ) : (
             <ChatInterface researchId={researchId} token={token} />
           )}
