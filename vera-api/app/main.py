@@ -11,6 +11,10 @@ from app.api.endpoints import auth, chat, admin
 
 settings = get_settings()
 
+# Debug: Print CORS origins on startup
+print(f"🔧 CORS_ORIGINS configured: {settings.CORS_ORIGINS}")
+print(f"🔧 CORS_ORIGINS type: {type(settings.CORS_ORIGINS)}")
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
@@ -25,6 +29,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+print(f"✅ CORS middleware added with origins: {settings.CORS_ORIGINS}")
 
 # Include routers
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["auth"])
