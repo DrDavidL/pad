@@ -21,16 +21,24 @@ app = FastAPI(
     description="Multi-user FastAPI backend for Vera - P.A.D. Educational Chatbot"
 )
 
-# CORS middleware
+# CORS middleware - must be before routes
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
+    expose_headers=["*"],
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 print(f"✅ CORS middleware added with origins: {settings.CORS_ORIGINS}")
+
+# Explicit OPTIONS handler for all routes (preflight requests)
+@app.options("/{rest_of_path:path}")
+async def preflight_handler(rest_of_path: str):
+    """Handle preflight OPTIONS requests"""
+    return {"status": "ok"}
 
 # Include routers
 app.include_router(auth.router, prefix=f"{settings.API_V1_PREFIX}/auth", tags=["auth"])
