@@ -5,7 +5,7 @@ import IPhoneFrame from '@/components/IPhoneFrame';
 import ResearchIDScreen from '@/components/ResearchIDScreen';
 import DisclaimerScreen from '@/components/DisclaimerScreen';
 import ChatInterface from '@/components/ChatInterface';
-import ElevenLabsChatInterface from '@/components/ElevenLabsChatInterface';
+import ElevenLabsWidget from '@/components/ElevenLabsWidget';
 import { VeraAPI } from '@/lib/api';
 import { AppScreen } from '@/types';
 
@@ -101,7 +101,7 @@ export default function Home() {
 
           {/* Render selected chat interface */}
           {useElevenLabs ? (
-            <ElevenLabsChatInterface researchId={researchId} token={token} onLogout={handleLogout} />
+            <ElevenLabsWidget researchId={researchId} token={token} onLogout={handleLogout} />
           ) : (
             <ChatInterface researchId={researchId} token={token} />
           )}
