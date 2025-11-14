@@ -1,10 +1,12 @@
 """
 Main FastAPI application
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 import os
+import traceback
 
 from app.core.config import get_settings
 from app.api.endpoints import auth, chat, admin
@@ -33,6 +35,26 @@ app.add_middleware(
 )
 
 print(f"✅ CORS middleware added with origins: {settings.CORS_ORIGINS}")
+
+# Global exception handler to ensure CORS headers on errors
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch all unhandled exceptions and return with CORS headers"""
+    print(f"❌ Unhandled exception: {exc}")
+    print(f"❌ Traceback: {traceback.format_exc()}")
+
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "error": str(exc),
+            "type": type(exc).__name__
+        },
+        headers={
+            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
+            "Access-Control-Allow-Credentials": "true",
+        }
+    )
 
 # Explicit OPTIONS handler for all routes (preflight requests)
 @app.options("/{rest_of_path:path}")
