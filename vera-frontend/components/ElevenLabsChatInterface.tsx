@@ -171,6 +171,7 @@ export default function ElevenLabsChatInterface({
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
+        console.log('🔍 API URL being used:', apiUrl);
         console.log('Syncing message to backend:', {
           research_id: researchId,
           role: message.role,
