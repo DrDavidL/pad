@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     ELEVENLABS_MODEL_ID: str = "eleven_multilingual_v2"
 
     # CORS - accepts comma-separated string or list
-    CORS_ORIGINS: Union[str, List[str]] = "http://localhost:3000,http://localhost:5173"
+    CORS_ORIGINS: Union[str, List[str]] = "http://localhost:3000,http://localhost:5173,https://vera-pad.vercel.app"
 
     # Admin
     ADMIN_PASSWORD: str = ""
