@@ -1,5 +1,5 @@
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config
+from sqlalchemy import engine_from_config, text
 from sqlalchemy import pool
 from alembic import context
 import os
@@ -49,6 +49,20 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Clean up orphaned alembic_version entries before running migrations
+        try:
+            result = connection.execute(text(
+                "SELECT version_num FROM alembic_version WHERE version_num IN ('39bc126e2b3a', 'elevenlabs_001')"
+            ))
+            orphaned = result.fetchone()
+            if orphaned:
+                print(f"🧹 Found orphaned revision: {orphaned[0]}, cleaning up...")
+                connection.execute(text("DELETE FROM alembic_version WHERE version_num IN ('39bc126e2b3a', 'elevenlabs_001')"))
+                connection.commit()
+                print("✅ Cleaned up orphaned revisions")
+        except Exception as e:
+            print(f"ℹ️  Alembic version cleanup: {e}")
+
         context.configure(
             connection=connection, target_metadata=target_metadata
         )
