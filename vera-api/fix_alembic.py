@@ -15,10 +15,11 @@ from app.core.config import get_settings
 def fix_alembic_version():
     """Remove invalid revision from alembic_version table"""
     settings = get_settings()
+    print(f"🔌 Connecting to database...")
     engine = create_engine(settings.DATABASE_URL)
 
+    # Check if alembic_version table exists
     with engine.connect() as conn:
-        # Check if alembic_version table exists
         result = conn.execute(text("""
             SELECT EXISTS (
                 SELECT FROM information_schema.tables
@@ -31,19 +32,25 @@ def fix_alembic_version():
             print("✅ No alembic_version table found - this is a fresh database")
             return
 
+    # Check and clean version in a transaction
+    with engine.begin() as conn:
         # Check current version
         result = conn.execute(text("SELECT version_num FROM alembic_version;"))
         current_version = result.scalar()
-        print(f"📊 Current Alembic version: {current_version}")
+
+        if current_version:
+            print(f"📊 Current Alembic version: {current_version}")
+        else:
+            print("📊 Alembic version table is empty")
+            return
 
         # Remove invalid revision if present
         if current_version == '39bc126e2b3a' or current_version == 'elevenlabs_001':
             print(f"🧹 Removing invalid revision: {current_version}")
             conn.execute(text("DELETE FROM alembic_version;"))
-            conn.commit()
             print("✅ Cleaned up alembic_version table")
         else:
-            print(f"✅ Version is valid or table is empty")
+            print(f"✅ Version '{current_version}' is valid, no cleanup needed")
 
 if __name__ == "__main__":
     try:
