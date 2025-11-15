@@ -89,24 +89,43 @@ export default function ElevenLabsWidget({
 
     const handleMessage = async (event: any) => {
       console.log('💬 Message received:', event.detail);
+      console.log('📊 Message detail structure:', {
+        source: event.detail?.source,
+        message: event.detail?.message,
+        text: event.detail?.text,
+        id: event.detail?.id,
+        conversationId: lastConversationId
+      });
 
       // Real-time message syncing - save immediately as messages come in
       const messageDetail = event.detail;
-      if (messageDetail && lastConversationId) {
-        try {
-          await saveMessageToBackend({
-            research_id: researchId,
-            role: messageDetail.source === 'user' ? 'user' : 'assistant',
-            content: messageDetail.message || messageDetail.text || '',
-            timestamp: new Date().toISOString(),
-            provider: 'elevenlabs',
-            elevenlabs_conversation_id: lastConversationId,
-            elevenlabs_message_id: messageDetail.id,
-          });
-          console.log('✅ Real-time message saved');
-        } catch (error) {
-          console.error('❌ Failed to save real-time message:', error);
-        }
+      if (!messageDetail) {
+        console.warn('⚠️ No message detail in event');
+        return;
+      }
+
+      if (!lastConversationId) {
+        console.warn('⚠️ No conversation ID available yet - message not saved');
+        return;
+      }
+
+      const messageData = {
+        research_id: researchId,
+        role: (messageDetail.source === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+        content: messageDetail.message || messageDetail.text || '',
+        timestamp: new Date().toISOString(),
+        provider: 'elevenlabs',
+        elevenlabs_conversation_id: lastConversationId,
+        elevenlabs_message_id: messageDetail.id,
+      };
+
+      console.log('📝 Attempting to save message:', messageData);
+
+      try {
+        await saveMessageToBackend(messageData);
+        console.log('✅ Real-time message saved successfully');
+      } catch (error) {
+        console.error('❌ Failed to save real-time message:', error);
       }
     };
 
@@ -135,6 +154,8 @@ export default function ElevenLabsWidget({
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
       console.log('💾 Saving message to backend:', data);
+      console.log('🌐 API URL:', `${apiUrl}/chat/save-message`);
+      console.log('🔑 Token present:', !!token);
 
       const response = await fetch(`${apiUrl}/chat/save-message`, {
         method: 'POST',
@@ -145,14 +166,24 @@ export default function ElevenLabsWidget({
         body: JSON.stringify(data),
       });
 
+      console.log('📡 Response status:', response.status, response.statusText);
+
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Failed to save message:', response.status, errorText);
+        console.error('❌ Failed to save message:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       } else {
-        console.log('✅ Message saved successfully');
+        const result = await response.json();
+        console.log('✅ Message saved successfully:', result);
+        return result;
       }
     } catch (error) {
       console.error('❌ Error saving message:', error);
+      throw error;
     }
   };
 
