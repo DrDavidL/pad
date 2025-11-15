@@ -19,6 +19,21 @@ export default function ElevenLabsWidget({
   const [lastConversationId, setLastConversationId] = React.useState<string | null>(null);
   const [isConversationActive, setIsConversationActive] = React.useState(false);
   const [scriptLoaded, setScriptLoaded] = React.useState(false);
+  const [widgetError, setWidgetError] = React.useState(false);
+
+  useEffect(() => {
+    // Ensure widget is properly initialized after script loads
+    if (scriptLoaded && widgetRef.current) {
+      console.log('Widget element initialized:', widgetRef.current);
+
+      // Force a small delay to ensure the custom element is registered
+      setTimeout(() => {
+        if (widgetRef.current) {
+          widgetRef.current.setAttribute('agent-id', agentId);
+        }
+      }, 100);
+    }
+  }, [scriptLoaded, agentId]);
 
   useEffect(() => {
     // Listen for widget events to capture conversation data
@@ -185,10 +200,12 @@ export default function ElevenLabsWidget({
         )}
 
         {/* ElevenLabs Widget - This will appear in bottom right */}
-        <elevenlabs-convai
-          ref={widgetRef}
-          agent-id={agentId}
-        ></elevenlabs-convai>
+        {scriptLoaded && (
+          <elevenlabs-convai
+            ref={widgetRef}
+            agent-id={agentId}
+          ></elevenlabs-convai>
+        )}
 
         {isConversationActive && (
           <div className="text-center mt-8">
@@ -200,7 +217,7 @@ export default function ElevenLabsWidget({
           </div>
         )}
 
-        {scriptLoaded && !isConversationActive && (
+        {scriptLoaded && !isConversationActive && !widgetError && (
           <div className="text-center text-gray-600 max-w-md">
             <p className="text-lg mb-4">Ready to chat with VERA!</p>
             <div className="text-sm space-y-2 bg-white/50 rounded-lg p-4">
@@ -210,17 +227,36 @@ export default function ElevenLabsWidget({
             </div>
           </div>
         )}
+
+        {widgetError && (
+          <div className="text-center text-red-600 max-w-md">
+            <p className="text-lg font-semibold mb-4">Widget Loading Issue</p>
+            <div className="text-sm space-y-2 bg-red-50 rounded-lg p-4 text-left">
+              <p className="font-medium">If you're using Chrome, please try:</p>
+              <p>• Enabling hardware acceleration in Chrome settings</p>
+              <p>• Using Safari or another browser</p>
+              <p>• Checking that WebGL is enabled (visit chrome://gpu)</p>
+              <p className="mt-3 text-gray-700">The widget requires WebGL support to function properly.</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Load ElevenLabs widget script */}
       <Script
         src="https://unpkg.com/@elevenlabs/convai-widget-embed"
-        strategy="afterInteractive"
+        strategy="lazyOnload"
         onLoad={() => {
           console.log('✅ ElevenLabs widget script loaded');
-          setScriptLoaded(true);
+          // Add delay to ensure custom element is registered
+          setTimeout(() => {
+            setScriptLoaded(true);
+          }, 500);
         }}
-        onError={(e) => console.error('❌ Failed to load ElevenLabs widget:', e)}
+        onError={(e) => {
+          console.error('❌ Failed to load ElevenLabs widget:', e);
+          setWidgetError(true);
+        }}
       />
 
       {/* Footer */}
