@@ -23,6 +23,107 @@ export default function ElevenLabsWidget({
   const [lastSyncedMessageCount, setLastSyncedMessageCount] = React.useState(0);
   const syncIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
 
+  // Define functions before useEffects
+  const saveMessageToBackend = React.useCallback(async (data: {
+    research_id: string;
+    role: 'user' | 'assistant';
+    content: string;
+    timestamp: string;
+    provider: string;
+    elevenlabs_conversation_id?: string;
+    elevenlabs_message_id?: string;
+  }) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+
+      console.log('💾 Saving message to backend:', data);
+      console.log('🌐 API URL:', `${apiUrl}/chat/save-message`);
+      console.log('🔑 Token present:', !!token);
+
+      const response = await fetch(`${apiUrl}/chat/save-message`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(data),
+      });
+
+      console.log('📡 Response status:', response.status, response.statusText);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Failed to save message:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      } else {
+        const result = await response.json();
+        console.log('✅ Message saved successfully:', result);
+        return result;
+      }
+    } catch (error) {
+      console.error('❌ Error saving message:', error);
+      throw error;
+    }
+  }, [token]);
+
+  const fetchAndSyncTranscript = React.useCallback(async (conversationId: string) => {
+    try {
+      console.log('🔄 Fetching transcript for:', conversationId);
+
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}`,
+        {
+          headers: {
+            'xi-api-key': process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error('❌ Failed to fetch transcript:', response.status);
+        return;
+      }
+
+      const data = await response.json();
+      console.log('📝 Transcript data:', data);
+
+      if (data.transcript && Array.isArray(data.transcript)) {
+        const totalMessages = data.transcript.length;
+        console.log(`📊 Total messages in transcript: ${totalMessages}, Last synced: ${lastSyncedMessageCount}`);
+
+        // Only sync new messages
+        const newMessages = data.transcript.slice(lastSyncedMessageCount);
+
+        if (newMessages.length > 0) {
+          console.log(`💾 Syncing ${newMessages.length} new messages...`);
+
+          for (const message of newMessages) {
+            await saveMessageToBackend({
+              research_id: researchId,
+              role: message.role === 'user' ? 'user' : 'assistant',
+              content: message.message || message.text || '',
+              timestamp: new Date(message.timestamp || Date.now()).toISOString(),
+              provider: 'elevenlabs',
+              elevenlabs_conversation_id: conversationId,
+              elevenlabs_message_id: message.id,
+            });
+          }
+
+          setLastSyncedMessageCount(totalMessages);
+          console.log(`✅ Synced ${newMessages.length} messages. Total synced: ${totalMessages}`);
+        } else {
+          console.log('ℹ️ No new messages to sync');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching/syncing transcript:', error);
+    }
+  }, [researchId, saveMessageToBackend, lastSyncedMessageCount]);
+
   useEffect(() => {
     // Ensure widget is properly initialized after script loads
     if (scriptLoaded && widgetRef.current) {
@@ -65,7 +166,7 @@ export default function ElevenLabsWidget({
         syncIntervalRef.current = null;
       }
     }
-  }, [isConversationActive, lastConversationId]);
+  }, [isConversationActive, lastConversationId, fetchAndSyncTranscript]);
 
   useEffect(() => {
     // Listen for widget events to capture conversation data
@@ -144,107 +245,6 @@ export default function ElevenLabsWidget({
       window.removeEventListener('elevenlabs-message', handleMessage);
     };
   }, [researchId, token, lastConversationId]);
-
-  const fetchAndSyncTranscript = async (conversationId: string) => {
-    try {
-      console.log('🔄 Fetching transcript for:', conversationId);
-
-      const response = await fetch(
-        `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}`,
-        {
-          headers: {
-            'xi-api-key': process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '',
-          },
-        }
-      );
-
-      if (!response.ok) {
-        console.error('❌ Failed to fetch transcript:', response.status);
-        return;
-      }
-
-      const data = await response.json();
-      console.log('📝 Transcript data:', data);
-
-      if (data.transcript && Array.isArray(data.transcript)) {
-        const totalMessages = data.transcript.length;
-        console.log(`📊 Total messages in transcript: ${totalMessages}, Last synced: ${lastSyncedMessageCount}`);
-
-        // Only sync new messages
-        const newMessages = data.transcript.slice(lastSyncedMessageCount);
-
-        if (newMessages.length > 0) {
-          console.log(`💾 Syncing ${newMessages.length} new messages...`);
-
-          for (const message of newMessages) {
-            await saveMessageToBackend({
-              research_id: researchId,
-              role: message.role === 'user' ? 'user' : 'assistant',
-              content: message.message || message.text || '',
-              timestamp: new Date(message.timestamp || Date.now()).toISOString(),
-              provider: 'elevenlabs',
-              elevenlabs_conversation_id: conversationId,
-              elevenlabs_message_id: message.id,
-            });
-          }
-
-          setLastSyncedMessageCount(totalMessages);
-          console.log(`✅ Synced ${newMessages.length} messages. Total synced: ${totalMessages}`);
-        } else {
-          console.log('ℹ️ No new messages to sync');
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error fetching/syncing transcript:', error);
-    }
-  };
-
-  const saveMessageToBackend = async (data: {
-    research_id: string;
-    role: 'user' | 'assistant';
-    content: string;
-    timestamp: string;
-    provider: string;
-    elevenlabs_conversation_id?: string;
-    elevenlabs_message_id?: string;
-  }) => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-
-      console.log('💾 Saving message to backend:', data);
-      console.log('🌐 API URL:', `${apiUrl}/chat/save-message`);
-      console.log('🔑 Token present:', !!token);
-
-      const response = await fetch(`${apiUrl}/chat/save-message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(data),
-      });
-
-      console.log('📡 Response status:', response.status, response.statusText);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Failed to save message:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText
-        });
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      } else {
-        const result = await response.json();
-        console.log('✅ Message saved successfully:', result);
-        return result;
-      }
-    } catch (error) {
-      console.error('❌ Error saving message:', error);
-      throw error;
-    }
-  };
-
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-purple-50 to-white">
