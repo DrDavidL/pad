@@ -33,6 +33,7 @@ export default function ElevenLabsWidget({
   const [textMessage, setTextMessage] = React.useState('');
   const [chatMessages, setChatMessages] = React.useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [scriptLoaded, setScriptLoaded] = React.useState(false);
   const textConversationIdRef = React.useRef<string>(`conv_${Date.now()}_${researchId}`);
 
   useEffect(() => {
@@ -351,8 +352,19 @@ export default function ElevenLabsWidget({
 
           {/* Widget Container */}
           <div className="flex-1 flex flex-col items-center justify-center p-8 gap-4">
+            {!scriptLoaded && (
+              <div className="text-center text-gray-500">
+                <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-sm">Loading voice widget...</p>
+              </div>
+            )}
+
             {/* @ts-ignore - ElevenLabs widget custom element */}
-            <elevenlabs-convai ref={widgetRef} agent-id={agentId}></elevenlabs-convai>
+            <elevenlabs-convai
+              ref={widgetRef}
+              agent-id={agentId}
+              style={{ display: scriptLoaded ? 'block' : 'none' }}
+            ></elevenlabs-convai>
 
             {isConversationActive && (
               <div className="text-center">
@@ -431,7 +443,10 @@ export default function ElevenLabsWidget({
       <Script
         src="https://unpkg.com/@elevenlabs/convai-widget-embed"
         strategy="afterInteractive"
-        onLoad={() => console.log('✅ ElevenLabs widget loaded')}
+        onLoad={() => {
+          console.log('✅ ElevenLabs widget script loaded');
+          setScriptLoaded(true);
+        }}
         onError={(e) => console.error('❌ Failed to load ElevenLabs widget:', e)}
       />
 
