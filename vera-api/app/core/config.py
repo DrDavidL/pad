@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     # Admin
     ADMIN_PASSWORD: str = ""
 
+    # Research IDs (used by seed script only)
+    RESEARCH_IDS: str = ""
+
     @field_validator('CORS_ORIGINS', mode='before')
     @classmethod
     def parse_cors_origins(cls, v):
