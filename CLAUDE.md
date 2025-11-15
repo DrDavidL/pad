@@ -2,6 +2,35 @@
 
 This file contains important project-specific guidelines and procedures for the VERA (Voice-Enabled Research Assistant) project.
 
+## ⚠️ CRITICAL SECURITY RULES ⚠️
+
+**NEVER commit these to Git:**
+- API keys (OpenAI, Groq, ElevenLabs, etc.)
+- Passwords (admin password, database passwords, etc.)
+- Database connection strings with credentials
+- Research IDs (these are confidential participant data)
+- JWT secret keys
+- Any `.env` files
+
+**Before EVERY commit:**
+1. Run `git diff --cached` to review what you're committing
+2. Check for hardcoded credentials in ANY file, especially:
+   - Shell scripts (`.sh` files)
+   - Configuration files
+   - Python scripts
+   - Environment files
+3. Use environment variables or command-line parameters for secrets
+4. If you accidentally commit a secret, IMMEDIATELY:
+   - Remove it from the code
+   - Use `git reset` or `git filter-repo` to remove from history
+   - Force push to overwrite history
+   - **ROTATE THE EXPOSED SECRET** (change password, regenerate key, etc.)
+
+**All secrets belong in:**
+- Railway environment variables (for backend)
+- Vercel environment variables (for frontend)
+- Local `.env` files (which are gitignored)
+
 ## Project Structure
 
 This is a monorepo containing:
@@ -207,3 +236,20 @@ Security and centralization. Research IDs are sensitive, and validation should h
 - Gives explicit control over when IDs are added
 - Avoids race conditions during startup
 - Database persists between deployments, so seeding only needed when IDs change
+
+## Security Incident Log
+
+### 2025-11-15: Admin Password Exposure
+**What happened:** Admin password was accidentally hardcoded in `seed_railway.sh` and committed to GitHub.
+
+**Timeline:**
+- Password `Wqy6kHWy$Lon9S6` was in commit c353d40 for ~5-10 minutes
+- Detected and removed using `git reset` and force push
+- Password was immediately rotated
+
+**Fix implemented:**
+- Updated `seed_railway.sh` to require password as command-line parameter
+- Added security warnings to CLAUDE.md
+- Created pre-commit checklist for credentials
+
+**Lesson learned:** Never hardcode credentials in any file, even "temporary" scripts. Always use environment variables or command-line parameters.
