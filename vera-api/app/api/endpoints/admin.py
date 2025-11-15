@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, timedelta
 from typing import List
+import os
 
 from app.db.base import get_db
 from app.models.database import ResearchID, UserSession, Conversation, DisclaimerAcknowledgment
@@ -17,6 +18,7 @@ from app.schemas.admin import (
     AdminStatsResponse
 )
 from app.core.security import verify_admin_password
+from app.core.config import get_settings
 
 router = APIRouter()
 
@@ -223,3 +225,67 @@ async def get_system_stats(
     )
 
     return stats
+
+
+@router.post("/seed-research-ids")
+async def seed_research_ids(
+    auth: AdminAuth,
+    db: Session = Depends(get_db)
+):
+    """Seed research IDs from RESEARCH_IDS environment variable (admin only)"""
+    verify_admin(auth)
+
+    settings = get_settings()
+    research_ids_env = settings.RESEARCH_IDS
+
+    if not research_ids_env:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="RESEARCH_IDS environment variable is empty"
+        )
+
+    # Parse comma-separated IDs
+    ids_to_add = []
+    for rid in research_ids_env.split(","):
+        rid = rid.strip()
+        if rid:
+            ids_to_add.append(rid)
+
+    if not ids_to_add:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No valid research IDs found in RESEARCH_IDS"
+        )
+
+    created = []
+    skipped = []
+
+    for research_id in ids_to_add:
+        # Check if already exists
+        existing = db.query(ResearchID).filter(
+            ResearchID.research_id == research_id
+        ).first()
+
+        if existing:
+            skipped.append(research_id)
+            continue
+
+        # Create new research ID
+        new_rid = ResearchID(
+            research_id=research_id,
+            notes=f"Seeded from environment variable",
+            is_active=True
+        )
+        db.add(new_rid)
+        created.append(research_id)
+
+    db.commit()
+
+    return {
+        "message": "Research IDs seeded successfully",
+        "created": created,
+        "skipped": skipped,
+        "total_created": len(created),
+        "total_skipped": len(skipped),
+        "total_processed": len(created) + len(skipped)
+    }
