@@ -33,14 +33,16 @@ After updating the environment variable, you **MUST** seed the database:
 
 **Option A: Using the Admin API Endpoint (Recommended)**
 ```bash
-# Use the provided script
-./seed_railway.sh https://YOUR-RAILWAY-URL
+# Use the provided script (password as second argument)
+./seed_railway.sh https://YOUR-RAILWAY-URL YOUR_ADMIN_PASSWORD
 
 # Or use curl directly
 curl -X POST https://YOUR-RAILWAY-URL/api/v1/admin/seed-research-ids \
   -H "Content-Type: application/json" \
   -d '{"password": "YOUR_ADMIN_PASSWORD"}'
 ```
+
+**IMPORTANT:** Never hardcode passwords in scripts or commit them to version control!
 
 **Option B: Using the Seed Script (if you have Railway CLI)**
 ```bash
@@ -189,7 +191,7 @@ railway logs
 
 ### Seed research IDs on Railway
 ```bash
-./seed_railway.sh https://YOUR-RAILWAY-URL
+./seed_railway.sh https://YOUR-RAILWAY-URL YOUR_ADMIN_PASSWORD
 ```
 
 ## Architecture Decisions
