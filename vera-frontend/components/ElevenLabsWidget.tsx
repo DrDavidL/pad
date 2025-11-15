@@ -215,7 +215,8 @@ export default function ElevenLabsWidget({
 
       {/* Widget Container */}
       <div className="flex-1 flex items-center justify-center p-8">
-        <elevenlabs-convai ref={widgetRef as any} agent-id={agentId}></elevenlabs-convai>
+        {/* @ts-ignore - ElevenLabs widget custom element */}
+        <elevenlabs-convai ref={widgetRef} agent-id={agentId}></elevenlabs-convai>
       </div>
 
       {/* Load ElevenLabs widget script */}
