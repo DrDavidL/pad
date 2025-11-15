@@ -81,3 +81,16 @@ class MessageSaveResponse(BaseModel):
     success: bool
     message_id: int
     timestamp: datetime
+
+
+class ElevenLabsConversationSyncRequest(BaseModel):
+    """Request to sync an ElevenLabs conversation"""
+    research_id: str
+    elevenlabs_conversation_id: str
+
+
+class ElevenLabsConversationSyncResponse(BaseModel):
+    """Response after syncing ElevenLabs conversation"""
+    success: bool
+    messages_synced: int
+    conversation_id: str

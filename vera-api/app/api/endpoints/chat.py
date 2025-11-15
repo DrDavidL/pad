@@ -15,7 +15,9 @@ from app.schemas.conversation import (
     ConversationHistoryResponse,
     StreamChatRequest,
     MessageSaveRequest,
-    MessageSaveResponse
+    MessageSaveResponse,
+    ElevenLabsConversationSyncRequest,
+    ElevenLabsConversationSyncResponse
 )
 from app.core.security import get_current_user, verify_token
 from app.services.llm_service import llm_service
@@ -334,3 +336,118 @@ async def websocket_chat_endpoint(websocket: WebSocket, db: Session = Depends(ge
     except Exception as e:
         print(f"WebSocket error: {e}")
         await websocket.send_json({"error": str(e)})
+
+
+@router.post("/sync-elevenlabs-conversation", response_model=ElevenLabsConversationSyncResponse)
+async def sync_elevenlabs_conversation(
+    data: ElevenLabsConversationSyncRequest,
+    current_user: ResearchID = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Fetch an ElevenLabs conversation transcript and sync it to the database.
+
+    This endpoint retrieves a conversation from the ElevenLabs API using the
+    conversation ID and saves all messages to the PostgreSQL database for research purposes.
+    """
+    # Verify user matches research_id in request
+    if current_user.research_id != data.research_id:
+        raise HTTPException(status_code=403, detail="Research ID mismatch")
+
+    # Import here to avoid circular imports
+    import httpx
+    from datetime import datetime
+    from app.core.config import get_settings
+    from app.models.database import Conversation
+
+    settings = get_settings()
+
+    try:
+        # Fetch conversation from ElevenLabs API
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"https://api.elevenlabs.io/v1/convai/conversations/{data.elevenlabs_conversation_id}",
+                headers={
+                    "xi-api-key": settings.ELEVENLABS_API_KEY
+                }
+            )
+
+            if response.status_code != 200:
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Failed to fetch conversation from ElevenLabs: {response.text}"
+                )
+
+            conversation_data = response.json()
+
+        # Get the research_id_fk
+        research_user = db.query(ResearchID).filter(
+            ResearchID.research_id == data.research_id
+        ).first()
+
+        if not research_user:
+            raise HTTPException(status_code=404, detail="Research ID not found")
+
+        # Use ElevenLabs conversation_id as our conversation_id
+        conversation_id = data.elevenlabs_conversation_id
+
+        # Process and save messages
+        messages_synced = 0
+
+        if conversation_data.get("transcript") and isinstance(conversation_data["transcript"], list):
+            for message in conversation_data["transcript"]:
+                # Parse message fields (ElevenLabs format may vary)
+                role = "user" if message.get("role") == "user" else "assistant"
+                content = message.get("message") or message.get("text") or ""
+
+                # Skip empty messages
+                if not content.strip():
+                    continue
+
+                # Parse timestamp
+                timestamp_str = message.get("timestamp")
+                if timestamp_str:
+                    try:
+                        timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    except (ValueError, AttributeError):
+                        timestamp = datetime.now()
+                else:
+                    timestamp = datetime.now()
+
+                # Check if message already exists (avoid duplicates)
+                elevenlabs_message_id = message.get("id")
+                existing_message = None
+
+                if elevenlabs_message_id:
+                    existing_message = db.query(Conversation).filter(
+                        Conversation.elevenlabs_message_id == elevenlabs_message_id
+                    ).first()
+
+                # Only save if not already in database
+                if not existing_message:
+                    db_message = Conversation(
+                        research_id_fk=research_user.id,
+                        conversation_id=conversation_id,
+                        role=role,
+                        content=content,
+                        timestamp=timestamp,
+                        provider="elevenlabs",
+                        elevenlabs_conversation_id=data.elevenlabs_conversation_id,
+                        elevenlabs_message_id=elevenlabs_message_id
+                    )
+                    db.add(db_message)
+                    messages_synced += 1
+
+        db.commit()
+
+        return ElevenLabsConversationSyncResponse(
+            success=True,
+            messages_synced=messages_synced,
+            conversation_id=conversation_id
+        )
+
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to connect to ElevenLabs API: {str(e)}")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to sync conversation: {str(e)}")

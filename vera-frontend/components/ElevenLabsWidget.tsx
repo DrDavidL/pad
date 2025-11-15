@@ -26,11 +26,16 @@ export default function ElevenLabsWidget({
 }: ElevenLabsWidgetProps) {
   const widgetRef = useRef<HTMLElement>(null);
   const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || 'YnxvbM6HYMhMeZam0Cxw';
+  const [lastConversationId, setLastConversationId] = React.useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = React.useState(false);
 
   useEffect(() => {
     // Listen for widget events to capture conversation data
     const handleConversationStart = (event: any) => {
       console.log('🎙️ Conversation started:', event.detail);
+      if (event.detail?.conversationId) {
+        setLastConversationId(event.detail.conversationId);
+      }
     };
 
     const handleConversationEnd = async (event: any) => {
@@ -123,6 +128,48 @@ export default function ElevenLabsWidget({
     }
   };
 
+  const syncConversationFromElevenLabs = async () => {
+    if (!lastConversationId) {
+      alert('No conversation to sync. Start a conversation first.');
+      return;
+    }
+
+    setIsSyncing(true);
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+
+      console.log('🔄 Syncing conversation:', lastConversationId);
+
+      const response = await fetch(`${apiUrl}/chat/sync-elevenlabs-conversation`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          research_id: researchId,
+          elevenlabs_conversation_id: lastConversationId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Failed to sync conversation:', response.status, errorText);
+        alert(`Failed to sync conversation: ${errorText}`);
+      } else {
+        const result = await response.json();
+        console.log('✅ Conversation synced:', result);
+        alert(`Successfully synced ${result.messages_synced} messages!`);
+      }
+    } catch (error) {
+      console.error('❌ Error syncing conversation:', error);
+      alert('Error syncing conversation. Check console for details.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-purple-50 to-white">
       {/* Header */}
@@ -145,12 +192,25 @@ export default function ElevenLabsWidget({
 
       {/* Instructions */}
       <div className="p-4 bg-blue-50 border-b border-blue-100">
-        <p className="text-sm text-blue-900">
-          <strong>🎙️ Click the microphone button below to start talking with VERA</strong>
-        </p>
-        <p className="text-xs text-blue-700 mt-1">
-          Your conversations are automatically saved for research purposes.
-        </p>
+        <div className="flex justify-between items-center">
+          <div>
+            <p className="text-sm text-blue-900">
+              <strong>🎙️ Click the microphone button below to start talking with VERA</strong>
+            </p>
+            <p className="text-xs text-blue-700 mt-1">
+              Your conversations are automatically saved for research purposes.
+            </p>
+          </div>
+          {lastConversationId && (
+            <button
+              onClick={syncConversationFromElevenLabs}
+              disabled={isSyncing}
+              className="ml-4 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-xs font-medium transition-colors"
+            >
+              {isSyncing ? '⏳ Syncing...' : '🔄 Sync Now'}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Widget Container */}
