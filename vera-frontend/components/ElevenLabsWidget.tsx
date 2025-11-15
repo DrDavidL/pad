@@ -12,13 +12,7 @@ interface ElevenLabsWidgetProps {
 declare global {
   namespace JSX {
     interface IntrinsicElements {
-      'elevenlabs-convai': React.DetailedHTMLProps<
-        React.HTMLAttributes<HTMLElement> & {
-          'agent-id': string;
-          style?: React.CSSProperties;
-        },
-        HTMLElement
-      >;
+      'elevenlabs-convai': any;
     }
   }
 }
