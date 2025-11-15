@@ -20,6 +20,8 @@ export default function ElevenLabsWidget({
   const [isConversationActive, setIsConversationActive] = React.useState(false);
   const [scriptLoaded, setScriptLoaded] = React.useState(false);
   const [widgetError, setWidgetError] = React.useState(false);
+  const [lastSyncedMessageCount, setLastSyncedMessageCount] = React.useState(0);
+  const syncIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Ensure widget is properly initialized after script loads
@@ -35,6 +37,36 @@ export default function ElevenLabsWidget({
     }
   }, [scriptLoaded, agentId]);
 
+  // Periodic transcript syncing during active conversation
+  useEffect(() => {
+    if (isConversationActive && lastConversationId) {
+      console.log('🔄 Starting periodic transcript sync for:', lastConversationId);
+
+      // Sync immediately when conversation starts
+      fetchAndSyncTranscript(lastConversationId);
+
+      // Then sync every 5 seconds during conversation
+      syncIntervalRef.current = setInterval(() => {
+        console.log('⏰ Periodic sync triggered');
+        fetchAndSyncTranscript(lastConversationId);
+      }, 5000);
+
+      return () => {
+        if (syncIntervalRef.current) {
+          console.log('🛑 Stopping periodic sync');
+          clearInterval(syncIntervalRef.current);
+          syncIntervalRef.current = null;
+        }
+      };
+    } else {
+      // Clear interval if conversation is not active
+      if (syncIntervalRef.current) {
+        clearInterval(syncIntervalRef.current);
+        syncIntervalRef.current = null;
+      }
+    }
+  }, [isConversationActive, lastConversationId]);
+
   useEffect(() => {
     // Listen for widget events to capture conversation data
     const handleConversationStart = (event: any) => {
@@ -49,41 +81,13 @@ export default function ElevenLabsWidget({
       console.log('🛑 Conversation ended:', event.detail);
       setIsConversationActive(false);
 
-      // Fetch conversation transcript from ElevenLabs API
+      // Do a final sync when conversation ends
       if (event.detail?.conversationId) {
-        try {
-          const response = await fetch(
-            `https://api.elevenlabs.io/v1/convai/conversations/${event.detail.conversationId}`,
-            {
-              headers: {
-                'xi-api-key': process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '',
-              },
-            }
-          );
+        console.log('🔄 Final transcript sync on conversation end');
+        await fetchAndSyncTranscript(event.detail.conversationId);
 
-          if (response.ok) {
-            const data = await response.json();
-            console.log('📝 Conversation transcript:', data);
-
-            // Save transcript to backend
-            if (data.transcript && Array.isArray(data.transcript)) {
-              for (const message of data.transcript) {
-                await saveMessageToBackend({
-                  research_id: researchId,
-                  role: message.role === 'user' ? 'user' : 'assistant',
-                  content: message.message || message.text || '',
-                  timestamp: new Date(message.timestamp || Date.now()).toISOString(),
-                  provider: 'elevenlabs',
-                  elevenlabs_conversation_id: event.detail.conversationId,
-                  elevenlabs_message_id: message.id,
-                });
-              }
-              console.log(`✅ Synced ${data.transcript.length} messages to database`);
-            }
-          }
-        } catch (error) {
-          console.error('❌ Failed to fetch conversation transcript:', error);
-        }
+        // Reset counter for next conversation
+        setLastSyncedMessageCount(0);
       }
     };
 
@@ -140,6 +144,60 @@ export default function ElevenLabsWidget({
       window.removeEventListener('elevenlabs-message', handleMessage);
     };
   }, [researchId, token, lastConversationId]);
+
+  const fetchAndSyncTranscript = async (conversationId: string) => {
+    try {
+      console.log('🔄 Fetching transcript for:', conversationId);
+
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/convai/conversations/${conversationId}`,
+        {
+          headers: {
+            'xi-api-key': process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.error('❌ Failed to fetch transcript:', response.status);
+        return;
+      }
+
+      const data = await response.json();
+      console.log('📝 Transcript data:', data);
+
+      if (data.transcript && Array.isArray(data.transcript)) {
+        const totalMessages = data.transcript.length;
+        console.log(`📊 Total messages in transcript: ${totalMessages}, Last synced: ${lastSyncedMessageCount}`);
+
+        // Only sync new messages
+        const newMessages = data.transcript.slice(lastSyncedMessageCount);
+
+        if (newMessages.length > 0) {
+          console.log(`💾 Syncing ${newMessages.length} new messages...`);
+
+          for (const message of newMessages) {
+            await saveMessageToBackend({
+              research_id: researchId,
+              role: message.role === 'user' ? 'user' : 'assistant',
+              content: message.message || message.text || '',
+              timestamp: new Date(message.timestamp || Date.now()).toISOString(),
+              provider: 'elevenlabs',
+              elevenlabs_conversation_id: conversationId,
+              elevenlabs_message_id: message.id,
+            });
+          }
+
+          setLastSyncedMessageCount(totalMessages);
+          console.log(`✅ Synced ${newMessages.length} messages. Total synced: ${totalMessages}`);
+        } else {
+          console.log('ℹ️ No new messages to sync');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error fetching/syncing transcript:', error);
+    }
+  };
 
   const saveMessageToBackend = async (data: {
     research_id: string;
