@@ -9,14 +9,6 @@ interface ElevenLabsWidgetProps {
   onLogout?: () => void;
 }
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'elevenlabs-convai': any;
-    }
-  }
-}
-
 export default function ElevenLabsWidget({
   researchId,
   token,
