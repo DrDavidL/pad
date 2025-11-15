@@ -27,11 +27,13 @@ export default function ElevenLabsWidget({
   const widgetRef = useRef<HTMLElement>(null);
   const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || 'YnxvbM6HYMhMeZam0Cxw';
   const [lastConversationId, setLastConversationId] = React.useState<string | null>(null);
+  const [isConversationActive, setIsConversationActive] = React.useState(false);
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [showTextInput, setShowTextInput] = React.useState(false);
   const [textMessage, setTextMessage] = React.useState('');
   const [chatMessages, setChatMessages] = React.useState<Array<{role: 'user' | 'assistant', content: string}>>([]);
   const [isLoading, setIsLoading] = React.useState(false);
+  const textConversationIdRef = React.useRef<string>(`conv_${Date.now()}_${researchId}`);
 
   useEffect(() => {
     // Listen for widget events to capture conversation data
@@ -39,11 +41,13 @@ export default function ElevenLabsWidget({
       console.log('🎙️ Conversation started:', event.detail);
       if (event.detail?.conversationId) {
         setLastConversationId(event.detail.conversationId);
+        setIsConversationActive(true);
       }
     };
 
     const handleConversationEnd = async (event: any) => {
       console.log('🛑 Conversation ended:', event.detail);
+      setIsConversationActive(false);
 
       // Fetch conversation transcript from ElevenLabs API
       if (event.detail?.conversationId) {
@@ -74,6 +78,7 @@ export default function ElevenLabsWidget({
                   elevenlabs_message_id: message.id,
                 });
               }
+              console.log(`✅ Synced ${data.transcript.length} messages to database`);
             }
           }
         } catch (error) {
@@ -82,8 +87,27 @@ export default function ElevenLabsWidget({
       }
     };
 
-    const handleMessage = (event: any) => {
-      console.log('💬 Message:', event.detail);
+    const handleMessage = async (event: any) => {
+      console.log('💬 Message received:', event.detail);
+
+      // Real-time message syncing - save immediately as messages come in
+      const messageDetail = event.detail;
+      if (messageDetail && lastConversationId) {
+        try {
+          await saveMessageToBackend({
+            research_id: researchId,
+            role: messageDetail.source === 'user' ? 'user' : 'assistant',
+            content: messageDetail.message || messageDetail.text || '',
+            timestamp: new Date().toISOString(),
+            provider: 'elevenlabs',
+            elevenlabs_conversation_id: lastConversationId,
+            elevenlabs_message_id: messageDetail.id,
+          });
+          console.log('✅ Real-time message saved');
+        } catch (error) {
+          console.error('❌ Failed to save real-time message:', error);
+        }
+      }
     };
 
     // Add event listeners
@@ -96,7 +120,7 @@ export default function ElevenLabsWidget({
       window.removeEventListener('elevenlabs-conversation-end', handleConversationEnd);
       window.removeEventListener('elevenlabs-message', handleMessage);
     };
-  }, [researchId, token]);
+  }, [researchId, token, lastConversationId]);
 
   const saveMessageToBackend = async (data: {
     research_id: string;
@@ -188,17 +212,8 @@ export default function ElevenLabsWidget({
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
-      // Save user message
-      await saveMessageToBackend({
-        research_id: researchId,
-        role: 'user',
-        content: userMessage,
-        timestamp: new Date().toISOString(),
-        provider: 'text',
-      });
-
-      // Send to chat endpoint
-      const response = await fetch(`${apiUrl}/chat/send`, {
+      // Send to chat endpoint (which handles both saving user message and getting response)
+      const response = await fetch(`${apiUrl}/chat/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -206,7 +221,9 @@ export default function ElevenLabsWidget({
         },
         body: JSON.stringify({
           research_id: researchId,
-          message: userMessage,
+          conversation_id: textConversationIdRef.current,
+          content: userMessage,
+          model: 'gpt-4o',
         }),
       });
 
@@ -215,19 +232,12 @@ export default function ElevenLabsWidget({
       }
 
       const data = await response.json();
-      const assistantMessage = data.response || data.message || 'Sorry, I could not process that.';
+      const assistantMessage = data.content || 'Sorry, I could not process that.';
 
       // Add assistant message to chat
       setChatMessages(prev => [...prev, { role: 'assistant', content: assistantMessage }]);
 
-      // Save assistant message
-      await saveMessageToBackend({
-        research_id: researchId,
-        role: 'assistant',
-        content: assistantMessage,
-        timestamp: new Date().toISOString(),
-        provider: 'text',
-      });
+      console.log('✅ Text message sent and response received');
     } catch (error) {
       console.error('❌ Error sending text message:', error);
       setChatMessages(prev => [...prev, {
@@ -245,6 +255,15 @@ export default function ElevenLabsWidget({
       // The widget should handle the click automatically
       const event = new CustomEvent('elevenlabs-start', { bubbles: true });
       widgetRef.current.dispatchEvent(event);
+    }
+  };
+
+  const endConversation = () => {
+    // End the current conversation by dispatching an end event to the widget
+    if (widgetRef.current && isConversationActive) {
+      const event = new CustomEvent('elevenlabs-end', { bubbles: true });
+      widgetRef.current.dispatchEvent(event);
+      setIsConversationActive(false);
     }
   };
 
@@ -302,21 +321,31 @@ export default function ElevenLabsWidget({
             <div className="flex justify-between items-center">
               <div>
                 <p className="text-sm text-blue-900">
-                  <strong>Click the button below to start a voice conversation</strong>
+                  <strong>{isConversationActive ? 'Conversation in progress...' : 'Click the microphone icon below to start'}</strong>
                 </p>
                 <p className="text-xs text-blue-700 mt-1">
-                  Your conversations are automatically saved for research purposes.
+                  All conversations are automatically saved to the database in real-time.
                 </p>
               </div>
-              {lastConversationId && (
-                <button
-                  onClick={syncConversationFromElevenLabs}
-                  disabled={isSyncing}
-                  className="ml-4 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-xs font-medium transition-colors"
-                >
-                  {isSyncing ? '⏳ Syncing...' : '🔄 Sync Now'}
-                </button>
-              )}
+              <div className="flex gap-2">
+                {isConversationActive && (
+                  <button
+                    onClick={endConversation}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
+                  >
+                    End Call
+                  </button>
+                )}
+                {lastConversationId && !isConversationActive && (
+                  <button
+                    onClick={syncConversationFromElevenLabs}
+                    disabled={isSyncing}
+                    className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-xs font-medium transition-colors"
+                  >
+                    {isSyncing ? 'Syncing...' : 'Sync Now'}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -325,14 +354,15 @@ export default function ElevenLabsWidget({
             {/* @ts-ignore - ElevenLabs widget custom element */}
             <elevenlabs-convai ref={widgetRef} agent-id={agentId}></elevenlabs-convai>
 
-            {/* Explicit Voice Call Button */}
-            <button
-              onClick={startVoiceCall}
-              className="px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-full text-lg font-semibold shadow-lg hover:shadow-xl transition-all transform hover:scale-105 flex items-center gap-3"
-            >
-              <span className="text-2xl">🎙️</span>
-              Start Voice Call
-            </button>
+            {isConversationActive && (
+              <div className="text-center">
+                <div className="flex items-center gap-2 text-green-600 mb-2">
+                  <div className="w-3 h-3 bg-green-600 rounded-full animate-pulse"></div>
+                  <span className="text-sm font-medium">Recording...</span>
+                </div>
+                <p className="text-xs text-gray-600">Messages are being saved in real-time</p>
+              </div>
+            )}
           </div>
         </>
       )}
