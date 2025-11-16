@@ -27,6 +27,7 @@ export default function ElevenLabsWidget({
     type: 'idle' | 'syncing' | 'success' | 'error';
   }>({ message: '', type: 'idle' });
   const autoLogoutTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionConversationIds = useRef<Set<string>>(new Set());
 
   // Define functions before useEffects
   const saveMessageToBackend = React.useCallback(async (data: {
@@ -234,22 +235,32 @@ export default function ElevenLabsWidget({
 
   const handleSyncNewConversations = React.useCallback(async () => {
     try {
+      console.log(`📊 [SESSION] Session has ${sessionConversationIds.current.size} conversation(s) to check`);
+      console.log(`📋 [SESSION] Session conversation IDs:`, Array.from(sessionConversationIds.current));
+
+      // If no conversations in this session, nothing to sync
+      if (sessionConversationIds.current.size === 0) {
+        console.log('✅ [AUTO-SYNC] No conversations in this session to sync');
+        setSyncStatus({
+          message: 'No new conversations to save.',
+          type: 'success'
+        });
+        setTimeout(() => setSyncStatus({ message: '', type: 'idle' }), 3000);
+        return;
+      }
+
       // Get existing conversation IDs from database
       const existingIds = await checkExistingConversations();
       console.log(`📊 [AUTO-SYNC] Found ${existingIds.size} existing conversations in database`);
 
-      // Get all conversations from ElevenLabs
-      const allConversationIds = await fetchRecentConversations();
+      // Filter to only conversations from THIS SESSION that are NOT already in database
+      const sessionIds = Array.from(sessionConversationIds.current);
+      const newConversationIds = sessionIds.filter((id: string) => !existingIds.has(id));
 
-      if (!allConversationIds || allConversationIds.length === 0) {
-        return;
-      }
-
-      // Filter to only new conversations
-      const newConversationIds = allConversationIds.filter((id: string) => !existingIds.has(id));
+      console.log(`🔍 [AUTO-SYNC] Session conversations: ${sessionIds.length}, Already in DB: ${sessionIds.length - newConversationIds.length}, New to sync: ${newConversationIds.length}`);
 
       if (newConversationIds.length === 0) {
-        console.log('✅ [AUTO-SYNC] All conversations already saved!');
+        console.log('✅ [AUTO-SYNC] All session conversations already saved!');
         setSyncStatus({
           message: 'All conversations already saved to database.',
           type: 'success'
@@ -258,7 +269,7 @@ export default function ElevenLabsWidget({
         return;
       }
 
-      console.log(`🆕 [AUTO-SYNC] Found ${newConversationIds.length} new conversations to sync`);
+      console.log(`🆕 [AUTO-SYNC] Found ${newConversationIds.length} new conversation(s) from this session to sync`);
       setSyncStatus({
         message: `Syncing ${newConversationIds.length} new conversation(s)...`,
         type: 'syncing'
@@ -267,7 +278,7 @@ export default function ElevenLabsWidget({
       let successCount = 0;
       let errorCount = 0;
 
-      // Sync each new conversation
+      // Sync each new conversation from this session
       for (const convId of newConversationIds) {
         try {
           await fetchAndSyncTranscript(convId);
@@ -299,7 +310,7 @@ export default function ElevenLabsWidget({
       });
       setTimeout(() => setSyncStatus({ message: '', type: 'idle' }), 5000);
     }
-  }, [checkExistingConversations, fetchRecentConversations, fetchAndSyncTranscript]);
+  }, [checkExistingConversations, fetchAndSyncTranscript]);
 
   const handleSaveManualConversation = React.useCallback(async () => {
     if (!manualConversationId.trim()) {
@@ -380,7 +391,10 @@ export default function ElevenLabsWidget({
 
       if (event.detail?.conversationId) {
         setLastConversationId(event.detail.conversationId);
-        console.log('✅ [EVENT] Conversation ID saved to state:', event.detail.conversationId);
+        // Track this conversation ID as part of this session
+        sessionConversationIds.current.add(event.detail.conversationId);
+        console.log('✅ [EVENT] Conversation ID saved to state and session:', event.detail.conversationId);
+        console.log('📊 [SESSION] Session now has', sessionConversationIds.current.size, 'conversation(s)');
       } else {
         console.warn('⚠️ [EVENT WARNING] No conversationId in event.detail');
       }
@@ -393,6 +407,8 @@ export default function ElevenLabsWidget({
 
       // Sync the full conversation when it ends
       if (event.detail?.conversationId) {
+        // Also track in session in case start event didn't fire
+        sessionConversationIds.current.add(event.detail.conversationId);
         console.log('💾 [EVENT] Starting conversation sync for:', event.detail.conversationId);
         try {
           await fetchAndSyncTranscript(event.detail.conversationId);
