@@ -205,17 +205,7 @@ export default function ElevenLabsWidget({
           ></elevenlabs-convai>
         )}
 
-        {isConversationActive && (
-          <div className="text-center mt-8">
-            <div className="flex items-center justify-center gap-3 text-green-600 mb-2">
-              <div className="w-4 h-4 bg-green-600 rounded-full animate-pulse"></div>
-              <span className="text-lg font-semibold">Active Conversation</span>
-            </div>
-            <p className="text-sm text-gray-600">Your messages are being saved in real-time</p>
-          </div>
-        )}
-
-        {scriptLoaded && !isConversationActive && !widgetError && (
+        {scriptLoaded && !widgetError && (
           <div className="text-center text-gray-600 max-w-md">
             <p className="text-lg mb-4">Ready to chat with VERA!</p>
             <div className="text-sm space-y-2 bg-white/50 rounded-lg p-4">
