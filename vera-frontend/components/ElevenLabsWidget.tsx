@@ -6,7 +6,7 @@ import Script from 'next/script';
 interface ElevenLabsWidgetProps {
   researchId: string;
   token: string;
-  onLogout?: () => void;
+  onLogout?: () => Promise<void> | void;
 }
 
 export default function ElevenLabsWidget({
@@ -26,6 +26,7 @@ export default function ElevenLabsWidget({
     message: string;
     type: 'idle' | 'syncing' | 'success' | 'error';
   }>({ message: '', type: 'idle' });
+  const autoLogoutTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Define functions before useEffects
   const saveMessageToBackend = React.useCallback(async (data: {
@@ -312,6 +313,55 @@ export default function ElevenLabsWidget({
     await fetchAndSyncTranscript(manualConversationId.trim());
   }, [manualConversationId, fetchAndSyncTranscript]);
 
+  const handleLogoutWithSave = React.useCallback(async () => {
+    if (!onLogout) return;
+
+    try {
+      // First, sync any new conversations
+      console.log('💾 [LOGOUT] Saving conversations before logout...');
+      setSyncStatus({ message: 'Saving conversations before logout...', type: 'syncing' });
+
+      await handleSyncNewConversations();
+
+      // Wait a moment for the status to show
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Then logout
+      console.log('👋 [LOGOUT] Logging out...');
+      await onLogout();
+    } catch (error) {
+      console.error('❌ [LOGOUT ERROR]:', error);
+      // Logout anyway even if save fails
+      if (onLogout) await onLogout();
+    }
+  }, [onLogout, handleSyncNewConversations]);
+
+  // Auto-logout timer (20 minutes)
+  useEffect(() => {
+    const TWENTY_MINUTES = 20 * 60 * 1000;
+
+    // Reset timer on mount
+    const resetTimer = () => {
+      if (autoLogoutTimerRef.current) {
+        clearTimeout(autoLogoutTimerRef.current);
+      }
+
+      autoLogoutTimerRef.current = setTimeout(() => {
+        console.log('⏰ [AUTO-LOGOUT] 20 minutes expired, logging out...');
+        handleLogoutWithSave();
+      }, TWENTY_MINUTES);
+    };
+
+    resetTimer();
+
+    // Cleanup on unmount
+    return () => {
+      if (autoLogoutTimerRef.current) {
+        clearTimeout(autoLogoutTimerRef.current);
+      }
+    };
+  }, [handleLogoutWithSave]);
+
   useEffect(() => {
     // Widget is initialized via the agent-id attribute in JSX
     if (scriptLoaded && widgetRef.current) {
@@ -378,40 +428,51 @@ export default function ElevenLabsWidget({
           </div>
           {onLogout && (
             <button
-              onClick={onLogout}
-              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+              onClick={handleLogoutWithSave}
+              disabled={syncStatus.type === 'syncing'}
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 disabled:bg-white/10 rounded-lg text-sm font-medium transition-colors"
             >
-              Logout
+              {syncStatus.type === 'syncing' ? 'Saving & Logging out...' : 'Logout'}
             </button>
           )}
         </div>
       </div>
 
-      {/* Save Conversation Section */}
-      <div className="p-4 bg-gradient-to-r from-purple-600 to-indigo-600 border-b border-purple-700">
-        <div className="text-center">
-          <button
-            onClick={handleSyncNewConversations}
-            disabled={syncStatus.type === 'syncing'}
-            className="w-full px-6 py-3 bg-white hover:bg-gray-100 disabled:bg-gray-300 text-purple-700 font-bold rounded-lg text-lg shadow-lg transition-colors"
-          >
-            {syncStatus.type === 'syncing' ? 'Syncing...' : '💾 Save New Conversations to Database'}
-          </button>
-          <p className="text-xs text-white mt-2 opacity-90">
-            Click after ending your call - automatically saves only new conversations
-          </p>
-        </div>
-      </div>
-
       {/* Instructions */}
-      <div className="p-4 bg-blue-50 border-b border-blue-100">
-        <div className="text-center">
-          <p className="text-sm text-blue-900">
-            <strong>Click "Call VERA" below to start</strong>
-          </p>
-          <p className="text-xs text-blue-700 mt-1">
-            The widget supports both voice and text input.
-          </p>
+      <div className="p-6 bg-gradient-to-b from-blue-50 to-white border-b border-blue-100">
+        <div className="max-w-md mx-auto">
+          <h2 className="text-lg font-bold text-blue-900 mb-4 text-center">How to Use VERA</h2>
+          <div className="space-y-3">
+            <div className="flex gap-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
+                1
+              </div>
+              <p className="text-sm text-gray-700 pt-1">
+                Click <strong>"Call VERA"</strong> button in the bottom right corner
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
+                2
+              </div>
+              <p className="text-sm text-gray-700 pt-1">
+                Click the <strong>phone icon</strong> in the expanded window to begin your call. When done, click the <strong>hangup icon</strong>
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold">
+                3
+              </div>
+              <p className="text-sm text-gray-700 pt-1">
+                Click <strong>"Logout"</strong> to save your conversations to the research database
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-xs text-yellow-800">
+              ⏰ <strong>Note:</strong> For your security, you'll be automatically logged out after 20 minutes of inactivity.
+            </p>
+          </div>
         </div>
       </div>
 
@@ -447,8 +508,8 @@ export default function ElevenLabsWidget({
         </div>
       )}
 
-      {/* Widget Container - Full Screen */}
-      <div className="flex-1 flex flex-col items-center justify-center p-4">
+      {/* Widget Container */}
+      <div className="flex-1 flex items-center justify-center p-4">
         {!scriptLoaded && (
           <div className="text-center text-gray-500">
             <div className="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
@@ -463,17 +524,6 @@ export default function ElevenLabsWidget({
             ref={widgetRef}
             agent-id={agentId}
           ></elevenlabs-convai>
-        )}
-
-        {scriptLoaded && !widgetError && (
-          <div className="text-center text-gray-600 max-w-md">
-            <p className="text-lg mb-4">Ready to chat with VERA!</p>
-            <div className="text-sm space-y-2 bg-white/50 rounded-lg p-4">
-              <p>• Click the "Call VERA" button in the bottom right</p>
-              <p>• Use voice or type your messages</p>
-              <p>• End anytime by closing the chat window</p>
-            </div>
-          </div>
         )}
 
         {widgetError && (
