@@ -115,13 +115,26 @@ export default function ElevenLabsWidget({
     // Ensure widget is properly initialized after script loads
     if (scriptLoaded && widgetRef.current) {
       console.log('Widget element initialized:', widgetRef.current);
+      console.log('Agent ID being set:', agentId);
 
-      // Force a small delay to ensure the custom element is registered
-      setTimeout(() => {
+      // Force widget to reinitialize by toggling the agent-id
+      const initWidget = () => {
         if (widgetRef.current) {
-          widgetRef.current.setAttribute('agent-id', agentId);
+          // First remove the attribute to force re-initialization
+          widgetRef.current.removeAttribute('agent-id');
+
+          // Then set it again with a slight delay
+          setTimeout(() => {
+            if (widgetRef.current) {
+              widgetRef.current.setAttribute('agent-id', agentId);
+              console.log('✅ Widget initialized with agent ID:', agentId);
+            }
+          }, 50);
         }
-      }, 100);
+      };
+
+      // Wait longer for custom element to be fully registered
+      setTimeout(initWidget, 1000);
     }
   }, [scriptLoaded, agentId]);
 
