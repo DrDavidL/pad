@@ -167,29 +167,10 @@ export default function ElevenLabsWidget({
   }, [researchId, saveMessageToBackend]);
 
   useEffect(() => {
-    // Ensure widget is properly initialized after script loads
+    // Widget is initialized via the agent-id attribute in JSX
     if (scriptLoaded && widgetRef.current) {
-      console.log('Widget element initialized:', widgetRef.current);
-      console.log('Agent ID being set:', agentId);
-
-      // Force widget to reinitialize by toggling the agent-id
-      const initWidget = () => {
-        if (widgetRef.current) {
-          // First remove the attribute to force re-initialization
-          widgetRef.current.removeAttribute('agent-id');
-
-          // Then set it again with a slight delay
-          setTimeout(() => {
-            if (widgetRef.current) {
-              widgetRef.current.setAttribute('agent-id', agentId);
-              console.log('✅ Widget initialized with agent ID:', agentId);
-            }
-          }, 50);
-        }
-      };
-
-      // Wait longer for custom element to be fully registered
-      setTimeout(initWidget, 1000);
+      console.log('✅ Widget element ready:', widgetRef.current);
+      console.log('✅ Agent ID:', agentId);
     }
   }, [scriptLoaded, agentId]);
 
@@ -267,8 +248,22 @@ export default function ElevenLabsWidget({
             <strong>Click "Call VERA" below to start</strong>
           </p>
           <p className="text-xs text-blue-700 mt-1">
-            The widget supports both voice and text input. All conversations are saved when you hang up.
+            The widget supports both voice and text input.
           </p>
+          {lastConversationId && (
+            <div className="mt-3">
+              <button
+                onClick={() => fetchAndSyncTranscript(lastConversationId)}
+                disabled={syncStatus.type === 'syncing'}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                {syncStatus.type === 'syncing' ? 'Saving...' : 'Save Last Conversation to Database'}
+              </button>
+              <p className="text-xs text-gray-600 mt-1">
+                Last conversation: {lastConversationId.substring(0, 20)}...
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
