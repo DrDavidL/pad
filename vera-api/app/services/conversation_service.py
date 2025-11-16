@@ -109,6 +109,26 @@ class ConversationService:
 
         return [conv[0] for conv in conversations]
 
+    def get_existing_elevenlabs_conversations(
+        db: Session,
+        research_id: str
+    ) -> List[str]:
+        """Get list of existing ElevenLabs conversation IDs for a research ID"""
+        research_user = db.query(ResearchID).filter(
+            ResearchID.research_id == research_id
+        ).first()
+
+        if not research_user:
+            return []
+
+        # Get distinct elevenlabs_conversation_id values that are not null
+        conversations = db.query(Conversation.elevenlabs_conversation_id).filter(
+            Conversation.research_id_fk == research_user.id,
+            Conversation.elevenlabs_conversation_id.isnot(None)
+        ).distinct().all()
+
+        return [conv[0] for conv in conversations if conv[0]]
+
 
 # Singleton instance
 conversation_service = ConversationService()

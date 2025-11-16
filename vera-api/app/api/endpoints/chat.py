@@ -233,6 +233,23 @@ async def get_recent_conversations(
     }
 
 
+@router.get("/conversations/elevenlabs")
+async def get_elevenlabs_conversations(
+    current_user: ResearchID = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get list of existing ElevenLabs conversation IDs for current user"""
+    elevenlabs_conv_ids = conversation_service.get_existing_elevenlabs_conversations(
+        db=db,
+        research_id=current_user.research_id
+    )
+
+    return {
+        "research_id": current_user.research_id,
+        "elevenlabs_conversation_ids": elevenlabs_conv_ids
+    }
+
+
 @router.websocket("/ws/chat")
 async def websocket_chat_endpoint(websocket: WebSocket, db: Session = Depends(get_db)):
     """

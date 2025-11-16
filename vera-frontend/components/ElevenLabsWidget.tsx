@@ -74,10 +74,34 @@ export default function ElevenLabsWidget({
     }
   }, [token]);
 
+  const checkExistingConversations = React.useCallback(async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      console.log('🔍 [CHECK] Checking existing ElevenLabs conversations in database...');
+
+      const response = await fetch(`${apiUrl}/chat/conversations/elevenlabs`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 [CHECK] Existing ElevenLabs conversation IDs:', data);
+        // Return set of ElevenLabs conversation IDs that are already saved
+        return new Set(data.elevenlabs_conversation_ids || []);
+      }
+      return new Set();
+    } catch (error) {
+      console.error('❌ [CHECK ERROR]:', error);
+      return new Set();
+    }
+  }, [token]);
+
   const fetchRecentConversations = React.useCallback(async () => {
     try {
       console.log('🔍 [FETCH] Getting recent conversations from ElevenLabs...');
-      setSyncStatus({ message: 'Finding conversations...', type: 'syncing' });
+      setSyncStatus({ message: 'Finding new conversations...', type: 'syncing' });
 
       const response = await fetch(
         `https://api.elevenlabs.io/v1/convai/conversations?agent_id=${agentId}`,
@@ -96,17 +120,8 @@ export default function ElevenLabsWidget({
       console.log('📝 [FETCH] Conversations data:', data);
 
       if (data.conversations && data.conversations.length > 0) {
-        console.log(`✅ [FETCH] Found ${data.conversations.length} conversations`);
-
-        // Return conversations with useful info for selection
-        return data.conversations.map((conv: any) => ({
-          id: conv.conversation_id,
-          agent_id: conv.agent_id,
-          status: conv.status,
-          // Parse the date for display
-          created: new Date(conv.start_time_unix_secs * 1000).toLocaleString(),
-          timestamp: conv.start_time_unix_secs
-        }));
+        console.log(`✅ [FETCH] Found ${data.conversations.length} total conversations`);
+        return data.conversations.map((conv: any) => conv.conversation_id);
       } else {
         throw new Error('No conversations found');
       }
@@ -216,19 +231,74 @@ export default function ElevenLabsWidget({
     }
   }, [researchId, saveMessageToBackend]);
 
-  const handleShowConversationPicker = React.useCallback(async () => {
-    const conversations = await fetchRecentConversations();
-    if (conversations && conversations.length > 0) {
-      setRecentConversations(conversations);
-      setShowConversationList(true);
-      setSyncStatus({ message: '', type: 'idle' });
-    }
-  }, [fetchRecentConversations]);
+  const handleSyncNewConversations = React.useCallback(async () => {
+    try {
+      // Get existing conversation IDs from database
+      const existingIds = await checkExistingConversations();
+      console.log(`📊 [AUTO-SYNC] Found ${existingIds.size} existing conversations in database`);
 
-  const handleSelectConversation = React.useCallback(async (conversationId: string) => {
-    setShowConversationList(false);
-    await fetchAndSyncTranscript(conversationId);
-  }, [fetchAndSyncTranscript]);
+      // Get all conversations from ElevenLabs
+      const allConversationIds = await fetchRecentConversations();
+
+      if (!allConversationIds || allConversationIds.length === 0) {
+        return;
+      }
+
+      // Filter to only new conversations
+      const newConversationIds = allConversationIds.filter((id: string) => !existingIds.has(id));
+
+      if (newConversationIds.length === 0) {
+        console.log('✅ [AUTO-SYNC] All conversations already saved!');
+        setSyncStatus({
+          message: 'All conversations already saved to database.',
+          type: 'success'
+        });
+        setTimeout(() => setSyncStatus({ message: '', type: 'idle' }), 3000);
+        return;
+      }
+
+      console.log(`🆕 [AUTO-SYNC] Found ${newConversationIds.length} new conversations to sync`);
+      setSyncStatus({
+        message: `Syncing ${newConversationIds.length} new conversation(s)...`,
+        type: 'syncing'
+      });
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Sync each new conversation
+      for (const convId of newConversationIds) {
+        try {
+          await fetchAndSyncTranscript(convId);
+          successCount++;
+        } catch (error) {
+          console.error(`❌ [AUTO-SYNC] Failed to sync conversation ${convId}:`, error);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        setSyncStatus({
+          message: `Successfully synced ${successCount} new conversation(s)!`,
+          type: 'success'
+        });
+      } else {
+        setSyncStatus({
+          message: `Failed to sync conversations. Please try again.`,
+          type: 'error'
+        });
+      }
+      setTimeout(() => setSyncStatus({ message: '', type: 'idle' }), 5000);
+
+    } catch (error) {
+      console.error('❌ [AUTO-SYNC ERROR]:', error);
+      setSyncStatus({
+        message: 'Error syncing conversations',
+        type: 'error'
+      });
+      setTimeout(() => setSyncStatus({ message: '', type: 'idle' }), 5000);
+    }
+  }, [checkExistingConversations, fetchRecentConversations, fetchAndSyncTranscript]);
 
   const handleSaveManualConversation = React.useCallback(async () => {
     if (!manualConversationId.trim()) {
@@ -320,51 +390,16 @@ export default function ElevenLabsWidget({
       {/* Save Conversation Section */}
       <div className="p-4 bg-gradient-to-r from-purple-600 to-indigo-600 border-b border-purple-700">
         <div className="text-center">
-          {!showConversationList ? (
-            <>
-              <button
-                onClick={handleShowConversationPicker}
-                disabled={syncStatus.type === 'syncing'}
-                className="w-full px-6 py-3 bg-white hover:bg-gray-100 disabled:bg-gray-300 text-purple-700 font-bold rounded-lg text-lg shadow-lg transition-colors"
-              >
-                {syncStatus.type === 'syncing' ? 'Loading...' : '💾 Save Conversation to Database'}
-              </button>
-              <p className="text-xs text-white mt-2 opacity-90">
-                Click after ending your call to choose and save the conversation
-              </p>
-            </>
-          ) : (
-            <div className="bg-white rounded-lg p-4 max-h-60 overflow-y-auto">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-purple-700 font-bold">Select Conversation to Save</h3>
-                <button
-                  onClick={() => setShowConversationList(false)}
-                  className="text-gray-500 hover:text-gray-700"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="space-y-2">
-                {recentConversations.map((conv, index) => (
-                  <button
-                    key={conv.id}
-                    onClick={() => handleSelectConversation(conv.id)}
-                    className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded border border-purple-200 transition-colors"
-                  >
-                    <div className="font-semibold text-purple-900 text-sm">
-                      {index === 0 ? '📞 Most Recent' : `Conversation ${index + 1}`}
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1">
-                      {conv.created}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1 font-mono">
-                      {conv.id.substring(0, 30)}...
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <button
+            onClick={handleSyncNewConversations}
+            disabled={syncStatus.type === 'syncing'}
+            className="w-full px-6 py-3 bg-white hover:bg-gray-100 disabled:bg-gray-300 text-purple-700 font-bold rounded-lg text-lg shadow-lg transition-colors"
+          >
+            {syncStatus.type === 'syncing' ? 'Syncing...' : '💾 Save New Conversations to Database'}
+          </button>
+          <p className="text-xs text-white mt-2 opacity-90">
+            Click after ending your call - automatically saves only new conversations
+          </p>
         </div>
       </div>
 
