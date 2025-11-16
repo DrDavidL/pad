@@ -18,6 +18,8 @@ export default function ElevenLabsWidget({
   const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || 'YnxvbM6HYMhMeZam0Cxw';
   const [lastConversationId, setLastConversationId] = React.useState<string | null>(null);
   const [manualConversationId, setManualConversationId] = React.useState<string>('');
+  const [recentConversations, setRecentConversations] = React.useState<any[]>([]);
+  const [showConversationList, setShowConversationList] = React.useState(false);
   const [scriptLoaded, setScriptLoaded] = React.useState(false);
   const [widgetError, setWidgetError] = React.useState(false);
   const [syncStatus, setSyncStatus] = React.useState<{
@@ -72,10 +74,10 @@ export default function ElevenLabsWidget({
     }
   }, [token]);
 
-  const fetchLatestConversation = React.useCallback(async () => {
+  const fetchRecentConversations = React.useCallback(async () => {
     try {
-      console.log('🔍 [FETCH] Getting latest conversation from ElevenLabs...');
-      setSyncStatus({ message: 'Finding latest conversation...', type: 'syncing' });
+      console.log('🔍 [FETCH] Getting recent conversations from ElevenLabs...');
+      setSyncStatus({ message: 'Finding conversations...', type: 'syncing' });
 
       const response = await fetch(
         `https://api.elevenlabs.io/v1/convai/conversations?agent_id=${agentId}`,
@@ -94,10 +96,17 @@ export default function ElevenLabsWidget({
       console.log('📝 [FETCH] Conversations data:', data);
 
       if (data.conversations && data.conversations.length > 0) {
-        // Get the most recent conversation
-        const latestConv = data.conversations[0];
-        console.log('✅ [FETCH] Latest conversation ID:', latestConv.conversation_id);
-        return latestConv.conversation_id;
+        console.log(`✅ [FETCH] Found ${data.conversations.length} conversations`);
+
+        // Return conversations with useful info for selection
+        return data.conversations.map((conv: any) => ({
+          id: conv.conversation_id,
+          agent_id: conv.agent_id,
+          status: conv.status,
+          // Parse the date for display
+          created: new Date(conv.start_time_unix_secs * 1000).toLocaleString(),
+          timestamp: conv.start_time_unix_secs
+        }));
       } else {
         throw new Error('No conversations found');
       }
@@ -207,12 +216,19 @@ export default function ElevenLabsWidget({
     }
   }, [researchId, saveMessageToBackend]);
 
-  const handleSaveLatestConversation = React.useCallback(async () => {
-    const convId = await fetchLatestConversation();
-    if (convId) {
-      await fetchAndSyncTranscript(convId);
+  const handleShowConversationPicker = React.useCallback(async () => {
+    const conversations = await fetchRecentConversations();
+    if (conversations && conversations.length > 0) {
+      setRecentConversations(conversations);
+      setShowConversationList(true);
+      setSyncStatus({ message: '', type: 'idle' });
     }
-  }, [fetchLatestConversation, fetchAndSyncTranscript]);
+  }, [fetchRecentConversations]);
+
+  const handleSelectConversation = React.useCallback(async (conversationId: string) => {
+    setShowConversationList(false);
+    await fetchAndSyncTranscript(conversationId);
+  }, [fetchAndSyncTranscript]);
 
   const handleSaveManualConversation = React.useCallback(async () => {
     if (!manualConversationId.trim()) {
@@ -304,16 +320,51 @@ export default function ElevenLabsWidget({
       {/* Save Conversation Section */}
       <div className="p-4 bg-gradient-to-r from-purple-600 to-indigo-600 border-b border-purple-700">
         <div className="text-center">
-          <button
-            onClick={handleSaveLatestConversation}
-            disabled={syncStatus.type === 'syncing'}
-            className="w-full px-6 py-3 bg-white hover:bg-gray-100 disabled:bg-gray-300 text-purple-700 font-bold rounded-lg text-lg shadow-lg transition-colors"
-          >
-            {syncStatus.type === 'syncing' ? 'Saving...' : '💾 Hangup & Save Conversation'}
-          </button>
-          <p className="text-xs text-white mt-2 opacity-90">
-            Click after ending your call to save the conversation to the research database
-          </p>
+          {!showConversationList ? (
+            <>
+              <button
+                onClick={handleShowConversationPicker}
+                disabled={syncStatus.type === 'syncing'}
+                className="w-full px-6 py-3 bg-white hover:bg-gray-100 disabled:bg-gray-300 text-purple-700 font-bold rounded-lg text-lg shadow-lg transition-colors"
+              >
+                {syncStatus.type === 'syncing' ? 'Loading...' : '💾 Save Conversation to Database'}
+              </button>
+              <p className="text-xs text-white mt-2 opacity-90">
+                Click after ending your call to choose and save the conversation
+              </p>
+            </>
+          ) : (
+            <div className="bg-white rounded-lg p-4 max-h-60 overflow-y-auto">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-purple-700 font-bold">Select Conversation to Save</h3>
+                <button
+                  onClick={() => setShowConversationList(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-2">
+                {recentConversations.map((conv, index) => (
+                  <button
+                    key={conv.id}
+                    onClick={() => handleSelectConversation(conv.id)}
+                    className="w-full text-left p-3 bg-purple-50 hover:bg-purple-100 rounded border border-purple-200 transition-colors"
+                  >
+                    <div className="font-semibold text-purple-900 text-sm">
+                      {index === 0 ? '📞 Most Recent' : `Conversation ${index + 1}`}
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {conv.created}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1 font-mono">
+                      {conv.id.substring(0, 30)}...
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
