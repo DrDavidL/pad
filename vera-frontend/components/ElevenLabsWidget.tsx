@@ -235,12 +235,55 @@ export default function ElevenLabsWidget({
 
   const handleSyncNewConversations = React.useCallback(async () => {
     try {
-      console.log(`📊 [SESSION] Session has ${sessionConversationIds.current.size} conversation(s) to check`);
+      console.log(`📊 [SESSION] Session has ${sessionConversationIds.current.size} conversation(s) tracked`);
       console.log(`📋 [SESSION] Session conversation IDs:`, Array.from(sessionConversationIds.current));
 
-      // If no conversations in this session, nothing to sync
+      // Get existing conversation IDs from database
+      const existingIds = await checkExistingConversations();
+      console.log(`📊 [AUTO-SYNC] Found ${existingIds.size} existing conversations in database`);
+
+      // FALLBACK: If no conversations tracked in session (events didn't fire),
+      // check the most recent conversation from ElevenLabs API
       if (sessionConversationIds.current.size === 0) {
-        console.log('✅ [AUTO-SYNC] No conversations in this session to sync');
+        console.log('⚠️ [FALLBACK] No conversations tracked in session, checking ElevenLabs API for recent conversation...');
+        setSyncStatus({ message: 'Checking for recent conversations...', type: 'syncing' });
+
+        try {
+          const response = await fetch(
+            `https://api.elevenlabs.io/v1/convai/conversations?agent_id=${agentId}`,
+            {
+              headers: {
+                'xi-api-key': process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '',
+              },
+            }
+          );
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.conversations && data.conversations.length > 0) {
+              // Get the most recent conversation
+              const mostRecent = data.conversations[0];
+              console.log('📝 [FALLBACK] Most recent conversation:', mostRecent.conversation_id);
+
+              // Check if it's already in database
+              if (!existingIds.has(mostRecent.conversation_id)) {
+                console.log('🆕 [FALLBACK] Recent conversation not in database, syncing...');
+                await fetchAndSyncTranscript(mostRecent.conversation_id);
+                setSyncStatus({
+                  message: 'Successfully synced recent conversation!',
+                  type: 'success'
+                });
+                setTimeout(() => setSyncStatus({ message: '', type: 'idle' }), 3000);
+                return;
+              } else {
+                console.log('✅ [FALLBACK] Recent conversation already in database');
+              }
+            }
+          }
+        } catch (fallbackError) {
+          console.error('❌ [FALLBACK ERROR]:', fallbackError);
+        }
+
         setSyncStatus({
           message: 'No new conversations to save.',
           type: 'success'
@@ -248,10 +291,6 @@ export default function ElevenLabsWidget({
         setTimeout(() => setSyncStatus({ message: '', type: 'idle' }), 3000);
         return;
       }
-
-      // Get existing conversation IDs from database
-      const existingIds = await checkExistingConversations();
-      console.log(`📊 [AUTO-SYNC] Found ${existingIds.size} existing conversations in database`);
 
       // Filter to only conversations from THIS SESSION that are NOT already in database
       const sessionIds = Array.from(sessionConversationIds.current);
@@ -310,7 +349,7 @@ export default function ElevenLabsWidget({
       });
       setTimeout(() => setSyncStatus({ message: '', type: 'idle' }), 5000);
     }
-  }, [checkExistingConversations, fetchAndSyncTranscript]);
+  }, [checkExistingConversations, fetchAndSyncTranscript, agentId]);
 
   const handleSaveManualConversation = React.useCallback(async () => {
     if (!manualConversationId.trim()) {
