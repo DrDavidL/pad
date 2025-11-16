@@ -17,6 +17,7 @@ export default function ElevenLabsWidget({
   const widgetRef = useRef<HTMLElement>(null);
   const agentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID || 'YnxvbM6HYMhMeZam0Cxw';
   const [lastConversationId, setLastConversationId] = React.useState<string | null>(null);
+  const [manualConversationId, setManualConversationId] = React.useState<string>('');
   const [scriptLoaded, setScriptLoaded] = React.useState(false);
   const [widgetError, setWidgetError] = React.useState(false);
   const [syncStatus, setSyncStatus] = React.useState<{
@@ -70,6 +71,46 @@ export default function ElevenLabsWidget({
       throw error;
     }
   }, [token]);
+
+  const fetchLatestConversation = React.useCallback(async () => {
+    try {
+      console.log('🔍 [FETCH] Getting latest conversation from ElevenLabs...');
+      setSyncStatus({ message: 'Finding latest conversation...', type: 'syncing' });
+
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/convai/conversations?agent_id=${agentId}`,
+        {
+          headers: {
+            'xi-api-key': process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch conversations: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('📝 [FETCH] Conversations data:', data);
+
+      if (data.conversations && data.conversations.length > 0) {
+        // Get the most recent conversation
+        const latestConv = data.conversations[0];
+        console.log('✅ [FETCH] Latest conversation ID:', latestConv.conversation_id);
+        return latestConv.conversation_id;
+      } else {
+        throw new Error('No conversations found');
+      }
+    } catch (error) {
+      console.error('❌ [FETCH ERROR]:', error);
+      setSyncStatus({
+        message: 'No conversations found. Please start a call first.',
+        type: 'error'
+      });
+      setTimeout(() => setSyncStatus({ message: '', type: 'idle' }), 5000);
+      return null;
+    }
+  }, [agentId]);
 
   const fetchAndSyncTranscript = React.useCallback(async (conversationId: string) => {
     try {
@@ -166,6 +207,25 @@ export default function ElevenLabsWidget({
     }
   }, [researchId, saveMessageToBackend]);
 
+  const handleSaveLatestConversation = React.useCallback(async () => {
+    const convId = await fetchLatestConversation();
+    if (convId) {
+      await fetchAndSyncTranscript(convId);
+    }
+  }, [fetchLatestConversation, fetchAndSyncTranscript]);
+
+  const handleSaveManualConversation = React.useCallback(async () => {
+    if (!manualConversationId.trim()) {
+      setSyncStatus({
+        message: 'Please enter a conversation ID',
+        type: 'error'
+      });
+      setTimeout(() => setSyncStatus({ message: '', type: 'idle' }), 3000);
+      return;
+    }
+    await fetchAndSyncTranscript(manualConversationId.trim());
+  }, [manualConversationId, fetchAndSyncTranscript]);
+
   useEffect(() => {
     // Widget is initialized via the agent-id attribute in JSX
     if (scriptLoaded && widgetRef.current) {
@@ -241,6 +301,22 @@ export default function ElevenLabsWidget({
         </div>
       </div>
 
+      {/* Save Conversation Section */}
+      <div className="p-4 bg-gradient-to-r from-purple-600 to-indigo-600 border-b border-purple-700">
+        <div className="text-center">
+          <button
+            onClick={handleSaveLatestConversation}
+            disabled={syncStatus.type === 'syncing'}
+            className="w-full px-6 py-3 bg-white hover:bg-gray-100 disabled:bg-gray-300 text-purple-700 font-bold rounded-lg text-lg shadow-lg transition-colors"
+          >
+            {syncStatus.type === 'syncing' ? 'Saving...' : '💾 Hangup & Save Conversation'}
+          </button>
+          <p className="text-xs text-white mt-2 opacity-90">
+            Click after ending your call to save the conversation to the research database
+          </p>
+        </div>
+      </div>
+
       {/* Instructions */}
       <div className="p-4 bg-blue-50 border-b border-blue-100">
         <div className="text-center">
@@ -250,20 +326,6 @@ export default function ElevenLabsWidget({
           <p className="text-xs text-blue-700 mt-1">
             The widget supports both voice and text input.
           </p>
-          {lastConversationId && (
-            <div className="mt-3">
-              <button
-                onClick={() => fetchAndSyncTranscript(lastConversationId)}
-                disabled={syncStatus.type === 'syncing'}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                {syncStatus.type === 'syncing' ? 'Saving...' : 'Save Last Conversation to Database'}
-              </button>
-              <p className="text-xs text-gray-600 mt-1">
-                Last conversation: {lastConversationId.substring(0, 20)}...
-              </p>
-            </div>
-          )}
         </div>
       </div>
 
