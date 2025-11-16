@@ -136,8 +136,23 @@ async def save_message_from_frontend(
     if not research_user:
         raise HTTPException(status_code=404, detail="Research ID not found")
 
-    # Create conversation record
+    # Check for duplicate message (for ElevenLabs messages)
     from app.models.database import Conversation
+    if data.elevenlabs_message_id and data.elevenlabs_conversation_id:
+        existing = db.query(Conversation).filter(
+            Conversation.elevenlabs_message_id == data.elevenlabs_message_id,
+            Conversation.elevenlabs_conversation_id == data.elevenlabs_conversation_id
+        ).first()
+
+        if existing:
+            # Message already exists, return success without creating duplicate
+            return MessageSaveResponse(
+                success=True,
+                message_id=existing.id,
+                timestamp=existing.timestamp
+            )
+
+    # Create conversation record
     message = Conversation(
         research_id_fk=research_user.id,
         conversation_id=conversation_id,
