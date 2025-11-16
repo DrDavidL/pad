@@ -179,10 +179,10 @@ export default function ElevenLabsWidget({
       <div className="p-4 bg-blue-50 border-b border-blue-100">
         <div className="text-center">
           <p className="text-sm text-blue-900">
-            <strong>{isConversationActive ? 'Conversation in progress...' : 'Click "Call VERA" below to start'}</strong>
+            <strong>Click "Call VERA" below to start</strong>
           </p>
           <p className="text-xs text-blue-700 mt-1">
-            The widget supports both voice and text input. All conversations are saved automatically.
+            The widget supports both voice and text input. All conversations are saved when you hang up.
           </p>
         </div>
       </div>
